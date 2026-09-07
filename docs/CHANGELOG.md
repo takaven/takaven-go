@@ -23,12 +23,11 @@
 ### Deferred
 - All AI-generated workflow actions.
 
-## [Checkpoint 3B — In progress]
+## [Checkpoint 3B — Accepted]
 
 ### Added
 - Generate-12 UI, frozen-input provenance, bounded structural repair and one-batch database protection.
 - Real PostgreSQL Generate-12 persistence smoke and rendered twelve-card/shortlist-cap workflow verification.
-### Deferred
-- Independent output-quality review of the single Stage 3B revalidation run.
-### Known limitations
-- First real OpenAI run executed: structure and grounding passed; output quality failed for demo-centric repetition and claim-warning false positives. Checkpoint remains STOP pending remediation revalidation.
+### Verified
+- Real run 1: gpt-5.6-sol / 3b-v1 passed structural and grounding verification but failed independent output-quality review for demo-centric repetition and false-positive warnings.
+- Real run 2: gpt-5.6-sol / 3b-v2 succeeded with exactly 12 concepts, one attempt/no repair and zero claim warnings; independent output-quality review passed and Stage 3B was accepted.

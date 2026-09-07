@@ -8,7 +8,7 @@ The validated manual loop is Product Truth → Signals → Creative Run → Manu
 
 ## V1 scope
 
-Product Truth, Attention Radar, Creative Engine, and Experiment & Learning. Stage 1 and Stage 2 are complete. Stage 3A AI execution foundation is complete. Stage 3B AI generation is in progress.
+Product Truth, Attention Radar, Creative Engine, and Experiment & Learning. Stages 1, 2, 3A and 3B are complete. Stage 3C has not started.
 
 ## Exclusions
 
@@ -20,4 +20,4 @@ Evidence precedes conclusion; operators own consequential decisions; frozen evid
 
 ## Not built
 
-AI challenge, AI experiment drafting, AI learning drafting, live signal ingestion, and later V1 stages are **NOT BUILT**. AI collision generation is implemented in Stage 3B but remains unaccepted pending real-output quality revalidation.
+AI challenge, AI experiment drafting, AI learning drafting, live signal ingestion, and later V1 stages are **NOT BUILT**. AI collision generation is implemented and accepted in Stage 3B.

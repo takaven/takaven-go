@@ -7,20 +7,13 @@ on:
         description: OpenAI model to use (must be explicitly supplied)
         required: true
         type: string
-  push:
-    branches:
-      - stage3b-generation
-    paths:
-      - .github/workflows/real-openai-smoke.yml
-      - app/ai_service.py
-      - tests/real_openai_smoke.py
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      OPENAI_MODEL: ${{ github.event_name == 'workflow_dispatch' && inputs.model || 'gpt-5.6-sol' }}
+      OPENAI_MODEL: ${{ inputs.model }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
