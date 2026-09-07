@@ -221,7 +221,7 @@ def generate_collisions(
     if prior_success:
         raise AIExecutionConflictError("This creative run already has its Generate-12 batch.")
     try:
-    execution = begin_execution(
+        execution = begin_execution(
             db,
             settings,
             AITaskType.GENERATE_COLLISIONS,
