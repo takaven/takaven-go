@@ -19,8 +19,16 @@ from urllib.parse import urlparse
 import httpx
 import psycopg
 from psycopg import errors
+from sqlalchemy import select
 
+from app.ai_schemas import Collision, CollisionBatch
+from app.ai_service import AIExecutionConflictError, generate_collisions
+from app.config import Settings
+from app.database import build_engine, build_session_factory
+from app.manual_loop import create_creative_run, create_signal, save_concept
+from app.models import AIExecution, AIExecutionStatus, Concept
 from app.seed import LEASEDESK_TRUTH
+from app.services import leasedesk
 
 BASE_URL = "http://127.0.0.1:8876"
 EXPECTED_INDEXES = {
@@ -42,6 +50,44 @@ EXPECTED_STAGE2_TABLES = {
     "learnings",
 }
 EXPECTED_STAGE3_TABLES = {"ai_executions"}
+
+
+class FakeClient:
+    def __init__(self, batches):
+        self.batches = batches
+        self.responses = self
+
+    def parse(self, **_kwargs):
+        batch = self.batches.pop(0)
+        if isinstance(batch, Exception):
+            raise batch
+        return type("Response", (), {"output_parsed": batch, "_request_id": "pg-fake"})()
+
+
+def collision(index: int, bridge: str = "Request a LeaseDesk walkthrough") -> Collision:
+    return Collision(
+        tension=f"Tension {index}",
+        creative_mechanic=f"Mechanic {index}",
+        artifact="Artifact",
+        product_proof="Record a payment and show the updated arrears state",
+        participation="Participate",
+        distribution="Named landlord group",
+        commercial_bridge=bridge,
+        dangerous_assumption="They care",
+    )
+
+
+def signal_values() -> dict[str, str]:
+    return {
+        "source": "PostgreSQL smoke",
+        "evidence": "Owners need visibility.",
+        "audience": "Owners",
+        "tension_pain": "Visibility",
+        "why_now": "Lease renewal",
+        "product_relevance": "Proof",
+        "buying_trigger": "Arrears",
+        "half_life": "One week",
+    }
 
 
 def database_url() -> str:
@@ -301,6 +347,115 @@ def verify_ai_execution_integrity() -> dict:
     }
 
 
+def verify_generation_provenance_schema() -> dict:
+    with psycopg.connect(database_url(), autocommit=True) as connection:
+        columns = {
+            row[0]
+            for row in connection.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema='public' AND table_name='concepts'"
+            )
+        }
+        assert {"ai_execution_id", "claim_warnings"} <= columns
+        foreign_keys = {
+            row[0]
+            for row in connection.execute(
+                "SELECT conname FROM pg_constraint WHERE conrelid='concepts'::regclass"
+            )
+        }
+        assert "fk_concepts_ai_execution" in foreign_keys
+    return {"generation_provenance_schema_verified": True}
+
+
+def verify_generate_collisions_postgresql() -> dict:
+    """Drive the real service against PostgreSQL with deterministic structured output."""
+    import app.ai_service as ai_service
+
+    settings = Settings(
+        database_url=os.environ["DATABASE_URL"],
+        operator_password=os.environ["OPERATOR_PASSWORD"],
+        session_secret=os.environ["SESSION_SECRET"],
+        cookie_secure=False,
+        openai_api_key="pg-fake-key",
+        openai_model="pg-fake-model",
+    )
+    session_factory = build_session_factory(build_engine(settings))
+    original_client = ai_service.openai_client
+    try:
+        with session_factory() as db:
+            product = leasedesk(db)
+            run = create_creative_run(
+                db, product, [create_signal(db, product.id, signal_values()).id]
+            )
+            warned = collision(0, "Show cash flow visibility")
+            ai_service.openai_client = lambda _settings: FakeClient(
+                [CollisionBatch(concepts=[warned, *[collision(i) for i in range(1, 12)]])]
+            )
+            execution = generate_collisions(db, settings, run, "pg-success")
+            concepts = list(db.scalars(select(Concept).where(Concept.creative_run_id == run.id)))
+            assert execution.status == AIExecutionStatus.SUCCEEDED
+            assert execution.result["concept_count"] == 12
+            assert execution.result["attempt_count"] == 1
+            assert execution.input_snapshot["truth"] == run.truth_snapshot
+            assert execution.input_snapshot["signals"]
+            assert len(concepts) == 12
+            assert all(concept.ai_execution_id == execution.id for concept in concepts)
+            assert "cash flow" in concepts[0].claim_warnings
+            try:
+                generate_collisions(db, settings, run, "pg-duplicate")
+            except AIExecutionConflictError:
+                pass
+            else:
+                raise AssertionError("PostgreSQL one-successful-batch invariant was not enforced")
+
+            failed_run = create_creative_run(
+                db, product, [create_signal(db, product.id, signal_values()).id]
+            )
+            manual = save_concept(
+                db,
+                failed_run,
+                {
+                    field: "manual"
+                    for field in (
+                        "tension",
+                        "creative_mechanic",
+                        "artifact",
+                        "product_proof",
+                        "participation",
+                        "distribution",
+                        "commercial_bridge",
+                        "dangerous_assumption",
+                    )
+                },
+            )
+            ai_service.openai_client = lambda _settings: FakeClient(
+                [ValueError("malformed one"), ValueError("malformed two")]
+            )
+            try:
+                generate_collisions(db, settings, failed_run, "pg-failure")
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("Expected deterministic generation failure")
+            failed_execution = db.scalar(
+                select(AIExecution).where(AIExecution.idempotency_key == "pg-failure")
+            )
+            assert failed_execution.status == AIExecutionStatus.FAILED
+            assert db.get(Concept, manual.id) is not None
+            assert not list(
+                db.scalars(select(Concept).where(Concept.ai_execution_id == failed_execution.id))
+            )
+    finally:
+        ai_service.openai_client = original_client
+    return {
+        "postgresql_generate_12_persistence": True,
+        "postgresql_generation_provenance": True,
+        "postgresql_generation_claim_warnings": True,
+        "postgresql_one_batch_invariant": True,
+        "postgresql_failed_generation_preserves_work": True,
+    }
+
+
 def verify_clean_state(expected_tables: bool) -> None:
     with psycopg.connect(database_url()) as connection:
         tables = {
@@ -322,6 +477,8 @@ def main() -> None:
         approved_id = drive_truth_workflow()
     result = verify_postgresql_integrity(approved_id)
     result.update(verify_ai_execution_integrity())
+    result.update(verify_generation_provenance_schema())
+    result.update(verify_generate_collisions_postgresql())
 
     run_alembic("downgrade", "base")
     verify_clean_state(expected_tables=False)

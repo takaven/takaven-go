@@ -205,6 +205,10 @@ def save_concept(
             raise ManualLoopError("This concept cannot be edited here.")
         for key, value in cleaned.items():
             setattr(concept, key, value)
+        if concept.ai_execution_id:
+            from app.ai_service import Collision, claim_warnings
+
+            concept.claim_warnings = claim_warnings(Collision(**cleaned), run)
         concept.updated_at = _now()
     db.commit()
     return concept
@@ -287,6 +291,8 @@ def decide_concept(db: Session, concept: Concept, decision: str) -> None:
         challenge = concept.challenge
         if challenge is None:
             raise ManualLoopError("Save the manual challenge before retaining a concept.")
+        if concept.claim_warnings:
+            raise ManualLoopError("Resolve generated claim warnings before promotion.")
         if challenge.gates["Product-Owned"]["verdict"] == GateVerdict.FAIL:
             raise ManualLoopError("Product-Owned = FAIL blocks promotion.")
         if not challenge.unsupported_resolved:

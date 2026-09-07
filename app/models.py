@@ -329,6 +329,19 @@ class AIExecution(Base):
         ),
         Index("uq_ai_execution_idempotency", "idempotency_key", unique=True),
         Index("ix_ai_execution_origin", "origin_type", "origin_id"),
+        Index(
+            "uq_ai_generate_active_or_succeeded",
+            "origin_type",
+            "origin_id",
+            "task_type",
+            unique=True,
+            postgresql_where=text(
+                "task_type = 'generate_collisions' AND status IN ('pending', 'running', 'succeeded')"
+            ),
+            sqlite_where=text(
+                "task_type = 'generate_collisions' AND status IN ('pending', 'running', 'succeeded')"
+            ),
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
@@ -347,6 +360,7 @@ class AIExecution(Base):
     error_code: Mapped[str | None] = mapped_column(String(100))
     error_message: Mapped[str | None] = mapped_column(Text)
     result: Mapped[dict | None] = mapped_column(JSON)
+    input_snapshot: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

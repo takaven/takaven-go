@@ -30,10 +30,15 @@ def progression(db: Session, product: Product, truth_version: int) -> dict:
         if run is None
         else list(db.scalars(select(Concept).where(Concept.creative_run_id == run.id)))
     )
-    experiment = db.scalar(
-        select(Experiment)
-        .where(Experiment.product_id == product.id)
-        .order_by(Experiment.updated_at.desc())
+    experiment = (
+        None
+        if run is None
+        else db.scalar(
+            select(Experiment)
+            .join(Concept, Experiment.concept_id == Concept.id)
+            .where(Concept.creative_run_id == run.id)
+            .order_by(Experiment.updated_at.desc())
+        )
     )
     learning = (
         None
@@ -70,7 +75,7 @@ def progression(db: Session, product: Product, truth_version: int) -> dict:
     elif not concepts:
         current, next_action, latest = (
             "Concepts",
-            "Enter rough creative concepts.",
+            "Generate 12 collisions from this run's frozen evidence.",
             "Creative run active",
         )
     elif not any(item.challenge for item in concepts if item.status == ConceptStatus.SHORTLISTED):

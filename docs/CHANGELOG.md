@@ -22,3 +22,12 @@
 - Real PostgreSQL, application/UI regression and configuration failure handling.
 ### Deferred
 - All AI-generated workflow actions.
+
+## [Checkpoint 3B — Accepted]
+
+### Added
+- Generate-12 UI, frozen-input provenance, bounded structural repair and one-batch database protection.
+- Real PostgreSQL Generate-12 persistence smoke and rendered twelve-card/shortlist-cap workflow verification.
+### Verified
+- Real run 1: gpt-5.6-sol / 3b-v1 passed structural and grounding verification but failed independent output-quality review for demo-centric repetition and false-positive warnings.
+- Real run 2: gpt-5.6-sol / 3b-v2 succeeded with exactly 12 concepts, one attempt/no repair and zero claim warnings; independent output-quality review passed and Stage 3B was accepted.
