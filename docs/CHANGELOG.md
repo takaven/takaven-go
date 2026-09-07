@@ -27,6 +27,7 @@
 
 ### Added
 - Generate-12 UI, frozen-input provenance, bounded structural repair and one-batch database protection.
+- Real PostgreSQL Generate-12 persistence smoke and rendered twelve-card/shortlist-cap workflow verification.
 ### Deferred
 - Real OpenAI smoke and independent output-quality review.
 ### Known limitations

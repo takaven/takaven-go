@@ -42,9 +42,9 @@ KNOWN TEST GAPS: No OpenAI call is implemented at this checkpoint.
 
 CHECKPOINT: 3B
 DATE: 2026-09-07
-AUTOMATED: PARTIAL — mocked generation, bounded retry, provenance, frozen input and full regression coverage are present; real-provider quality is not covered.
-POSTGRESQL: PASS — GitHub Actions disposable PostgreSQL migration/provenance smoke test.
-UI: PASS — rendered Generate-12 control, visible failure recovery, and Stage 1–2 regression routes.
+AUTOMATED: PASS — mocked generation, bounded retry, provenance, frozen input, successful rendered Generate-12 workflow and full regression coverage are present; real-provider quality is not covered.
+POSTGRESQL: PASS — real PostgreSQL Generate-12 service persistence, provenance, warnings, one-batch invariant, failed-generation preservation, migration downgrade/re-upgrade.
+UI: PASS — rendered Generate-12 success/failure recovery, twelve-card review, shortlist cap, and Stage 1–2 regression routes.
 REAL API: BLOCKED — no configured credential
 REGRESSION: Stage 1–2 PASS before current groundwork
 FINAL VERDICT: STOP

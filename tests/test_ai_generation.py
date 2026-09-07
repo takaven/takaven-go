@@ -246,3 +246,43 @@ def test_generate_control_is_rendered_and_missing_configuration_is_recoverable(
     with app.state.session_factory() as db:
         execution = db.scalar(select(AIExecution).where(AIExecution.origin_id == run_id))
         assert execution.status == AIExecutionStatus.FAILED
+
+
+def test_successful_rendered_generate_twelve_and_shortlist_cap(
+    authenticated_client, app, monkeypatch
+):
+    with app.state.session_factory() as db:
+        product = product_for(db)
+        run = create_creative_run(db, product, [create_signal(db, product.id, signal_values()).id])
+        run_id = run.id
+    warned = collision(0).model_copy(update={"commercial_bridge": "Improve cash flow now"})
+    fake = FakeClient([CollisionBatch(concepts=[warned, *[collision(i) for i in range(1, 12)]])])
+    monkeypatch.setattr("app.ai_service.openai_client", lambda _settings: fake)
+    page = authenticated_client.get(f"/creative/runs/{run_id}")
+    assert "Generate 12 collisions" in page.text
+    csrf = page.text.split('name="csrf" value="')[1].split('"')[0]
+    response = authenticated_client.post(
+        f"/creative/runs/{run_id}/generate", data={"csrf": csrf}, follow_redirects=True
+    )
+    assert response.status_code == 200
+    assert "Generation succeeded" in response.text
+    assert "Retry generation" not in response.text
+    assert "Generate 12 collisions</button>" not in response.text
+    assert "Claim warning:" in response.text
+    with app.state.session_factory() as db:
+        concepts = list(db.scalars(select(Concept).where(Concept.creative_run_id == run_id)))
+        assert len(concepts) == 12
+    for concept in concepts[:3]:
+        page = authenticated_client.get(f"/creative/runs/{run_id}")
+        csrf = page.text.split('name="csrf" value="')[1].split('"')[0]
+        shortlisted = authenticated_client.post(
+            f"/creative/concepts/{concept.id}/shortlist", data={"csrf": csrf}, follow_redirects=True
+        )
+        assert shortlisted.status_code == 200
+    page = authenticated_client.get(f"/creative/runs/{run_id}")
+    csrf = page.text.split('name="csrf" value="')[1].split('"')[0]
+    fourth = authenticated_client.post(
+        f"/creative/concepts/{concepts[3].id}/shortlist", data={"csrf": csrf}, follow_redirects=True
+    )
+    assert fourth.status_code == 422
+    assert "no more than three" in fourth.text
