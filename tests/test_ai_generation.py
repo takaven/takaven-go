@@ -11,7 +11,16 @@ from app.ai_service import (
 )
 from app.config import Settings
 from app.manual_loop import create_creative_run, create_signal, save_concept
-from app.models import AIExecution, AIExecutionStatus, Concept
+from app.models import (
+    AIExecution,
+    AIExecutionStatus,
+    Concept,
+    CreativeRun,
+    Experiment,
+    Learning,
+    LearningStatus,
+    Product,
+)
 from app.seed import seed_leasedesk
 from app.services import leasedesk
 
@@ -137,6 +146,50 @@ def test_frozen_input_scopes_learnings_to_run_product_and_delimits_evidence(app)
     with app.state.session_factory() as db:
         product = product_for(db)
         run = create_creative_run(db, product, [create_signal(db, product.id, signal_values()).id])
+        other = Product(name="Other product", slug="other-product")
+        db.add(other)
+        db.flush()
+        other_run = CreativeRun(
+            product_id=other.id,
+            truth_version_id=run.truth_version_id,
+            truth_snapshot=run.truth_snapshot,
+            whitespace_snapshot=run.whitespace_snapshot,
+        )
+        db.add(other_run)
+        db.flush()
+        other_concept = Concept(
+            creative_run_id=other_run.id,
+            **{
+                key: "other"
+                for key in (
+                    "tension",
+                    "creative_mechanic",
+                    "artifact",
+                    "product_proof",
+                    "participation",
+                    "distribution",
+                    "commercial_bridge",
+                    "dangerous_assumption",
+                )
+            },
+        )
+        db.add(other_concept)
+        db.flush()
+        other_experiment = Experiment(
+            product_id=other.id, concept_id=other_concept.id, truth_version_id=run.truth_version_id
+        )
+        db.add(other_experiment)
+        db.flush()
+        db.add(
+            Learning(
+                experiment_id=other_experiment.id,
+                content="Cross-product learning",
+                confidence="high",
+                qualification="synthetic",
+                status=LearningStatus.APPROVED,
+            )
+        )
+        db.commit()
         payload = frozen_generation_input(db, run)
         encoded = generation_evidence(payload)
         assert encoded == generation_evidence(payload)
