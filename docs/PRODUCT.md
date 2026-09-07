@@ -4,7 +4,7 @@ Takaven Go is TAKAVEN's internal growth engine for one operator. Its LeaseDesk p
 
 ## Current operating model
 
-The validated manual loop is Product Truth → Signals → Creative Run → Manual Challenge → Experiment → Result → Learning. LeaseDesk serves small-commercial-property landlords and owner-operators. Product claims are constrained by approved, versioned Product Truth.
+The current operating path is Product Truth → Signals → Creative Run → Generate 12 → Human shortlist → Manual Challenge → Experiment → Result → Learning. Manual concept entry remains a secondary operator-authored escape hatch. LeaseDesk serves small-commercial-property landlords and owner-operators. Product claims are constrained by approved, versioned Product Truth.
 
 ## V1 scope
 
