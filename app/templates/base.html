@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Takaven Go{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}">
+    <script defer src="{{ url_for('static', path='/app.js') }}"></script>
+  </head>
+  <body>
+    <header class="bg-ink text-white">
+      <div class="mx-auto max-w-7xl px-5 lg:px-8">
+        <div class="flex h-16 items-center justify-between border-b border-white/10">
+          <a href="/truth" class="flex items-baseline gap-3">
+            <span class="font-display text-xl italic">Takaven</span>
+            <span class="rounded-full bg-acid px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.18em] text-ink">Go</span>
+          </a>
+          <div class="flex items-center gap-4">
+            <span class="hidden text-xs text-white/45 sm:block">Internal growth engine · LeaseDesk</span>
+            <form method="post" action="/logout">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <button class="text-xs font-semibold text-white/60 transition hover:text-white">Sign out</button>
+            </form>
+          </div>
+        </div>
+        <nav class="flex gap-5 overflow-x-auto" aria-label="Primary navigation">
+          <a href="/truth" class="nav-link {{ 'nav-link-active' if active_area == 'truth' }}">Product Truth</a>
+          <a href="/radar" class="nav-link {{ 'nav-link-active' if active_area == 'radar' }}">Attention Radar</a>
+          <a href="/creative" class="nav-link {{ 'nav-link-active' if active_area == 'creative' }}">Creative Engine</a>
+          <a href="/experiments" class="nav-link {{ 'nav-link-active' if active_area == 'experiments' }}">Experiment &amp; Learning</a>
+        </nav>
+      </div>
+    </header>
+
+    {% include "partials/progression.html" %}
+
+    <main class="mx-auto max-w-7xl px-5 py-10 lg:px-8 lg:py-14">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="mx-auto max-w-7xl border-t border-ink/10 px-5 py-8 text-xs text-ink/45 lg:px-8">
+      Product truth before creative output. Manual loop · Stage 2.
+    </footer>
+  </body>
+</html>

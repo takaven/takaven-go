@@ -1,0 +1,1 @@
+"""Takaven Go application package."""

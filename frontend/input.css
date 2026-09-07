@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { @apply bg-ink text-ink antialiased; }
+  body { @apply min-h-screen bg-paper; }
+  ::selection { @apply bg-acid text-ink; }
+  :focus-visible { @apply outline-none ring-2 ring-moss ring-offset-2 ring-offset-paper; }
+}
+
+@layer components {
+  .eyebrow { @apply text-[0.68rem] font-bold uppercase tracking-[0.22em] text-moss; }
+  .truth-card { @apply rounded-2xl border border-ink/10 bg-white/70 p-5 shadow-sm backdrop-blur; }
+  .command-card { @apply rounded-2xl border border-ink/10 bg-white/80 p-5 shadow-sm; }
+  .status-chip { @apply inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-[0.12em]; }
+  .truth-card-confirmed { @apply border-l-4 border-l-moss; }
+  .truth-card-inferred { @apply border-l-4 border-l-amber-500; }
+  .btn-primary { @apply inline-flex items-center justify-center rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-moss disabled:cursor-not-allowed disabled:opacity-40; }
+  .btn-secondary { @apply inline-flex items-center justify-center rounded-full border border-ink/20 bg-white px-5 py-2.5 text-sm font-semibold text-ink transition hover:border-ink/50; }
+  .field-label { @apply mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-ink/60; }
+  .field-input { @apply w-full rounded-xl border-ink/15 bg-white px-4 py-3 text-sm shadow-sm focus:border-moss focus:ring-moss; }
+  .nav-link { @apply border-b-2 border-transparent px-1 py-4 text-sm font-medium text-white/55 transition hover:text-white; }
+  .nav-link-active { @apply border-acid text-white; }
+}
+
+[x-cloak] { display: none !important; }

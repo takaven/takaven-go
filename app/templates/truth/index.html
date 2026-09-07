@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Product Truth · Takaven Go{% endblock %}
+{% block content %}
+  <section class="grid gap-8 lg:grid-cols-[1fr_19rem]">
+    <div>
+      <p class="eyebrow">01 · Product Truth</p>
+      <h1 class="mt-3 max-w-3xl font-display text-4xl leading-tight sm:text-5xl">What LeaseDesk can <em>prove</em>—before we ask creative work to carry it.</h1>
+      <div class="mt-6 flex flex-wrap items-center gap-3">
+        <span class="rounded-full bg-moss px-3 py-1 text-xs font-bold uppercase tracking-wider text-white">Approved · v{{ active_truth.version }}</span>
+        <span class="text-sm text-ink/50">{{ active_truth.approved_at.strftime('%d %b %Y') if active_truth.approved_at else '' }}</span>
+      </div>
+    </div>
+    <aside class="rounded-2xl bg-ink p-5 text-white shadow-lift">
+      <p class="text-xs font-bold uppercase tracking-[0.16em] text-acid">Decision now</p>
+      {% if draft %}
+        <p class="mt-3 font-display text-2xl">Finish Truth v{{ draft.version }}</p>
+        <p class="mt-2 text-sm leading-6 text-white/55">A draft exists. Resolve its evidence and approve it—or keep the current truth active.</p>
+        <a href="/truth/drafts/{{ draft.id }}/edit" class="mt-5 inline-flex text-sm font-bold text-acid">Continue revision →</a>
+      {% else %}
+        <p class="mt-3 font-display text-2xl">Is the evidence still accurate?</p>
+        <p class="mt-2 text-sm leading-6 text-white/55">Keep the approved version active, or create a controlled revision.</p>
+        <form method="post" action="/truth/drafts" class="mt-5">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button class="text-sm font-bold text-acid">Create revision →</button>
+        </form>
+      {% endif %}
+    </aside>
+  </section>
+
+  <section class="mt-12">
+    <div class="mb-5 flex items-end justify-between">
+      <div><p class="eyebrow">Evidence map</p><h2 class="mt-2 font-display text-3xl">Active truth</h2></div>
+      <div class="hidden gap-4 text-xs sm:flex"><span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-moss"></i> Confirmed</span><span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-amber-500"></i> Inferred</span></div>
+    </div>
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {% for key, label in truth_labels.items() %}
+        {% set item = active_truth.content[key] %}
+        <article class="truth-card {{ 'truth-card-confirmed' if item.confidence == 'confirmed' else 'truth-card-inferred' }} {{ 'md:col-span-2 xl:col-span-3 bg-ember/5 !border-ember/30 !border-l-ember' if key == 'prohibited_claims' }}">
+          <div class="flex items-start justify-between gap-4">
+            <h3 class="text-xs font-black uppercase tracking-[0.14em] text-ink/50">{{ label }}</h3>
+            <span class="rounded-full bg-ink/5 px-2 py-1 text-[0.6rem] font-bold uppercase tracking-wider {{ 'text-moss' if item.confidence == 'confirmed' else 'text-amber-700' }}">{{ item.confidence }}</span>
+          </div>
+          <p class="mt-3 text-[0.96rem] leading-6 {{ 'font-semibold text-ink' if key == 'prohibited_claims' else 'text-ink/80' }}">{{ item.value }}</p>
+          <details class="mt-4 border-t border-ink/10 pt-3">
+            <summary class="cursor-pointer text-xs font-semibold text-ink/45">Evidence basis</summary>
+            <p class="mt-2 text-xs leading-5 text-ink/55">{{ item.basis }}</p>
+          </details>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if learnings %}
+  <section class="mt-14 border-t border-ink/10 pt-8">
+    <p class="eyebrow">Approved learning</p>
+    <h2 class="mt-2 font-display text-3xl">Evidence that informs the next run</h2>
+    <div class="mt-5 grid gap-4 md:grid-cols-2">
+      {% for learning in learnings %}
+      <article class="truth-card truth-card-confirmed">
+        <p class="font-semibold">{{ learning.content }}</p>
+        <p class="mt-3 text-sm text-ink/60">{{ learning.confidence }} confidence · {{ learning.qualification }}</p>
+        <a class="mt-4 inline-block text-sm font-bold text-moss" href="/experiments/{{ learning.experiment_id }}">View originating experiment →</a>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="mt-14 border-t border-ink/10 pt-8">
+    <p class="eyebrow">Version history</p>
+    <div class="mt-4 grid gap-3">
+      {% for item in history %}
+        <a href="{{ '/truth/drafts/' ~ item.id ~ '/edit' if item.status == 'draft' else '/truth/versions/' ~ item.id }}" class="flex items-center justify-between rounded-xl border border-ink/10 bg-white/60 px-5 py-4 transition hover:border-ink/30">
+          <div><strong>Truth v{{ item.version }}</strong><span class="ml-3 text-xs uppercase tracking-wider {{ 'text-amber-700' if item.status == 'draft' else 'text-moss' }}">{{ item.status }}</span><p class="mt-1 text-xs text-ink/45">{{ item.change_note or 'No change note yet.' }}</p></div>
+          <span aria-hidden="true">→</span>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

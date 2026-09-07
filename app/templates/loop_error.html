@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="mx-auto max-w-xl command-card border-l-4 border-l-red-500">
+  <p class="eyebrow text-red-700">Decision blocked</p>
+  <h1 class="mt-2 font-display text-3xl">One requirement is missing.</h1>
+  <p class="mt-4 text-ink/70">{{ error }}</p>
+  <a class="btn-primary mt-6" href="{{ back }}">Return to the work</a>
+</section>
+{% endblock %}

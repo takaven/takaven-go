@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Edit Truth v{{ draft.version }} · Takaven Go{% endblock %}
+{% block content %}
+  <div class="mx-auto max-w-4xl" x-data="{ open: '{{ truth_labels.keys()|list|first }}' }">
+    <a href="/truth" class="text-sm font-semibold text-ink/50">← Back to Product Truth</a>
+    <div class="mt-5 flex flex-wrap items-end justify-between gap-5">
+      <div><p class="eyebrow">Controlled revision</p><h1 class="mt-2 font-display text-4xl">Draft Truth v{{ draft.version }}</h1><p class="mt-3 max-w-2xl text-sm leading-6 text-ink/55">Approved history is locked. This draft becomes immutable only after review and approval.</p></div>
+      <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-800">Draft</span>
+    </div>
+
+    {% if errors %}<div class="mt-6 rounded-xl border border-ember/40 bg-ember/10 p-4 text-sm text-red-900" role="alert"><strong>Revision not saved.</strong> Complete every truth statement and evidence basis.</div>{% endif %}
+
+    <form method="post" action="/truth/drafts/{{ draft.id }}" class="mt-8 space-y-3">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      {% for key, label in truth_labels.items() %}
+        {% set item = form_content[key] %}
+        <section class="overflow-hidden rounded-2xl border border-ink/10 bg-white/70">
+          <button type="button" @click="open = open === '{{ key }}' ? '' : '{{ key }}'" class="flex w-full items-center justify-between px-5 py-4 text-left">
+            <span><span class="block text-xs font-black uppercase tracking-[0.14em] text-ink/45">{{ label }}</span><span class="mt-1 block max-w-2xl truncate text-sm text-ink/70">{{ item.value }}</span></span>
+            <span class="text-xl text-ink/35" x-text="open === '{{ key }}' ? '−' : '+'"></span>
+          </button>
+          <div x-cloak x-show="open === '{{ key }}'" class="border-t border-ink/10 px-5 py-5">
+            <label class="field-label" for="{{ key }}__value">Truth statement</label>
+            <textarea class="field-input" rows="3" id="{{ key }}__value" name="{{ key }}__value" required>{{ item.value }}</textarea>
+            <div class="mt-4 grid gap-4 sm:grid-cols-[10rem_1fr]">
+              <div><label class="field-label" for="{{ key }}__confidence">Evidence state</label><select class="field-input" id="{{ key }}__confidence" name="{{ key }}__confidence"><option value="confirmed" {{ 'selected' if item.confidence == 'confirmed' }}>Confirmed</option><option value="inferred" {{ 'selected' if item.confidence == 'inferred' }}>Inferred</option></select></div>
+              <div><label class="field-label" for="{{ key }}__basis">Evidence basis</label><textarea class="field-input" rows="3" id="{{ key }}__basis" name="{{ key }}__basis" required>{{ item.basis }}</textarea></div>
+            </div>
+          </div>
+        </section>
+      {% endfor %}
+      <section class="mt-6 rounded-2xl bg-ink p-6 text-white">
+        <label class="field-label !text-white/55" for="change_note">What changed?</label>
+        <input class="field-input !border-white/10 !bg-white/5 !text-white" id="change_note" name="change_note" maxlength="300" value="{{ draft.change_note or '' }}" placeholder="Short note for the version history">
+        <div class="mt-5 flex justify-end gap-3"><a href="/truth" class="btn-secondary !border-white/20 !bg-transparent !text-white">Keep draft</a><button class="rounded-full bg-acid px-5 py-2.5 text-sm font-black text-ink">Save revision</button></div>
+      </section>
+    </form>
+  </div>
+{% endblock %}

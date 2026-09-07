@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign in · Takaven Go</title>
+    <link rel="stylesheet" href="/static/app.css">
+  </head>
+  <body class="bg-ink text-white">
+    <main class="grid min-h-screen lg:grid-cols-[1.15fr_0.85fr]">
+      <section class="flex flex-col justify-between border-b border-white/10 p-8 lg:border-b-0 lg:border-r lg:p-14">
+        <div class="flex items-baseline gap-3">
+          <span class="font-display text-2xl italic">Takaven</span>
+          <span class="rounded-full bg-acid px-2 py-0.5 text-[0.62rem] font-black uppercase tracking-[0.18em] text-ink">Go</span>
+        </div>
+        <div class="my-20 max-w-2xl">
+          <p class="eyebrow !text-acid">Internal creative command centre</p>
+          <h1 class="mt-5 font-display text-5xl leading-[0.98] sm:text-7xl">Make the product<br><em>perform publicly.</em></h1>
+          <p class="mt-7 max-w-lg text-base leading-7 text-white/55">Truth first. Then signals, concepts, challenge, experiment and reusable learning.</p>
+        </div>
+        <p class="text-xs text-white/35">TAKAVEN · Single-operator access</p>
+      </section>
+      <section class="flex items-center p-8 lg:p-14">
+        <form method="post" action="/login" class="w-full max-w-sm">
+          <p class="eyebrow !text-white/45">Operator access</p>
+          <h2 class="mt-3 font-display text-3xl">Enter the command centre</h2>
+          <label for="password" class="mt-8 block text-sm font-semibold">Password</label>
+          <input id="password" name="password" type="password" required autofocus autocomplete="current-password" class="mt-2 w-full rounded-xl border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-white/25 focus:border-acid focus:ring-acid">
+          {% if error %}<p class="mt-3 rounded-lg border border-ember/40 bg-ember/10 px-3 py-2 text-sm text-orange-100" role="alert">{{ error }}</p>{% endif %}
+          <button type="submit" class="mt-6 w-full rounded-full bg-acid px-5 py-3 text-sm font-black text-ink transition hover:bg-white">Sign in</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>
+

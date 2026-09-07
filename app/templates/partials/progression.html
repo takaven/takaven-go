@@ -1,0 +1,19 @@
+<section class="border-b border-ink/10 bg-white/60" aria-label="Growth progression">
+  <div class="mx-auto max-w-7xl px-5 py-5 lg:px-8">
+    <div class="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+      <ol class="flex min-w-0 items-center overflow-x-auto pb-1 text-xs font-semibold">
+        {% for item in progress.stages %}
+          <li class="flex items-center whitespace-nowrap {{ 'text-ink' if item.state in ['complete', 'current'] else 'text-ink/35' }}">
+            <span class="mr-2 flex h-6 w-6 items-center justify-center rounded-full {% if item.state == 'complete' %}bg-moss text-white{% elif item.state == 'current' %}bg-acid font-black{% else %}border border-ink/15 bg-white{% endif %}">{{ '✓' if item.state == 'complete' else loop.index }}</span>
+            {{ item.label }}
+            {% if not loop.last %}<span class="mx-3 text-ink/20">→</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+      <div class="flex gap-6 border-l border-ink/10 pl-6 text-xs">
+        <div><span class="block text-ink/45">Latest state</span><strong>{{ progress.latest }}</strong></div>
+        <div><span class="block text-ink/45">Next action</span><strong>{{ progress.next_action }}</strong></div>
+      </div>
+    </div>
+  </div>
+</section>
