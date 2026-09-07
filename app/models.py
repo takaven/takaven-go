@@ -346,7 +346,8 @@ class AIExecution(Base):
     request_id: Mapped[str | None] = mapped_column(String(200))
     error_code: Mapped[str | None] = mapped_column(String(100))
     error_message: Mapped[str | None] = mapped_column(Text)
-    result: Mapped[dict | None] = mapped_column(JSON)
+      result: Mapped[dict | None] = mapped_column(JSON)
+    input_snapshot: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

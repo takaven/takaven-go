@@ -221,7 +221,7 @@ def generate_collisions(
     if prior_success:
         raise AIExecutionConflictError("This creative run already has its Generate-12 batch.")
     try:
-        execution = begin_execution(
+    execution = begin_execution(
             db,
             settings,
             AITaskType.GENERATE_COLLISIONS,
@@ -237,6 +237,8 @@ def generate_collisions(
         client = openai_client(settings)
         mark_running(db, execution)
         payload = frozen_generation_input(db, run)
+        execution.input_snapshot = payload
+        db.commit()
         try:
             response, batch = _validated_batch(client, settings, payload, repair=False)
             attempts = 1
