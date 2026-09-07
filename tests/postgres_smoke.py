@@ -429,7 +429,7 @@ def verify_generate_collisions_postgresql() -> dict:
                 },
             )
             ai_service.openai_client = lambda _settings: FakeClient(
-                [ValueError("provider test failure")]
+                [ValueError("malformed one"), ValueError("malformed two")]
             )
             try:
                 generate_collisions(db, settings, failed_run, "pg-failure")
