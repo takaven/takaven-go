@@ -10,6 +10,7 @@ from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.ai_service import AIConfigurationError, AIExecutionConflictError, generate_collisions
 from app.auth import (
     COOKIE_NAME,
     authenticate_password,
@@ -45,6 +46,7 @@ from app.manual_loop import (
     update_signal,
 )
 from app.models import (
+    AIExecution,
     ChallengeRecommendation,
     Concept,
     ConceptStatus,
@@ -447,8 +449,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if run is None or run.product_id != leasedesk(db).id:
             raise HTTPException(status_code=404, detail="Creative run not found")
         context = base_context(request, db, "creative")
-        context.update({"run": run, "concept_status": ConceptStatus})
+        executions = list(
+            db.scalars(
+                select(AIExecution)
+                .where(AIExecution.origin_type == "creative_run", AIExecution.origin_id == run.id)
+                .order_by(AIExecution.created_at.desc())
+            )
+        )
+        context.update({"run": run, "concept_status": ConceptStatus, "executions": executions})
         return templates.TemplateResponse(request, "creative/run.html", context)
+
+    @application.post("/creative/runs/{run_id}/generate")
+    async def generate_run(run_id: str, request: Request, db: Session = Depends(get_db)):
+        require_session(request, db)
+        form = await request.form()
+        validate_csrf(request, str(form.get("csrf", "")), settings)
+        run = db.get(CreativeRun, run_id)
+        if run is None or run.product_id != leasedesk(db).id:
+            raise HTTPException(status_code=404, detail="Creative run not found")
+        previous = list(
+            db.scalars(
+                select(AIExecution)
+                .where(AIExecution.origin_type == "creative_run", AIExecution.origin_id == run.id)
+                .order_by(AIExecution.created_at.desc())
+            )
+        )
+        retry_index = len(previous)
+        try:
+            generate_collisions(db, settings, run, f"{run.id}:generate:{retry_index}")
+        except (AIConfigurationError, AIExecutionConflictError, ValueError) as exc:
+            return loop_error(request, db, "creative", str(exc), f"/creative/runs/{run_id}")
+        return RedirectResponse(f"/creative/runs/{run_id}", status_code=303)
 
     @application.post("/creative/runs/{run_id}/concepts")
     async def new_concept(run_id: str, request: Request, db: Session = Depends(get_db)):

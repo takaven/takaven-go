@@ -287,6 +287,8 @@ def decide_concept(db: Session, concept: Concept, decision: str) -> None:
         challenge = concept.challenge
         if challenge is None:
             raise ManualLoopError("Save the manual challenge before retaining a concept.")
+        if concept.claim_warnings:
+            raise ManualLoopError("Resolve generated claim warnings before promotion.")
         if challenge.gates["Product-Owned"]["verdict"] == GateVerdict.FAIL:
             raise ManualLoopError("Product-Owned = FAIL blocks promotion.")
         if not challenge.unsupported_resolved:

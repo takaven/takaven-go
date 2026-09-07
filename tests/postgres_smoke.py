@@ -301,6 +301,26 @@ def verify_ai_execution_integrity() -> dict:
     }
 
 
+def verify_generation_provenance_schema() -> dict:
+    with psycopg.connect(database_url(), autocommit=True) as connection:
+        columns = {
+            row[0]
+            for row in connection.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema='public' AND table_name='concepts'"
+            )
+        }
+        assert {"ai_execution_id", "claim_warnings"} <= columns
+        foreign_keys = {
+            row[0]
+            for row in connection.execute(
+                "SELECT conname FROM pg_constraint WHERE conrelid='concepts'::regclass"
+            )
+        }
+        assert "fk_concepts_ai_execution" in foreign_keys
+    return {"generation_provenance_schema_verified": True}
+
+
 def verify_clean_state(expected_tables: bool) -> None:
     with psycopg.connect(database_url()) as connection:
         tables = {
@@ -322,6 +342,7 @@ def main() -> None:
         approved_id = drive_truth_workflow()
     result = verify_postgresql_integrity(approved_id)
     result.update(verify_ai_execution_integrity())
+    result.update(verify_generation_provenance_schema())
 
     run_alembic("downgrade", "base")
     verify_clean_state(expected_tables=False)

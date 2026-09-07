@@ -37,3 +37,15 @@ REAL API: NOT APPLICABLE
 REGRESSION: PASS
 FINAL VERDICT: PASS
 KNOWN TEST GAPS: No OpenAI call is implemented at this checkpoint.
+
+## Stage 3B
+
+CHECKPOINT: 3B
+DATE: 2026-09-07
+AUTOMATED: PARTIAL — mocked generation, bounded retry, provenance, frozen input and full regression coverage are present; real-provider quality is not covered.
+POSTGRESQL: CURRENT BRANCH VERIFICATION PENDING
+UI: CURRENT BRANCH VERIFICATION PENDING
+REAL API: BLOCKED — no configured credential
+REGRESSION: Stage 1–2 PASS before current groundwork
+FINAL VERDICT: STOP
+KNOWN TEST GAPS: Controlled real OpenAI generation and independent CI execution are pending.

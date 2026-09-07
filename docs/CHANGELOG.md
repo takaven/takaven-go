@@ -22,3 +22,12 @@
 - Real PostgreSQL, application/UI regression and configuration failure handling.
 ### Deferred
 - All AI-generated workflow actions.
+
+## [Checkpoint 3B — In progress]
+
+### Added
+- Partial generation-service and provenance groundwork.
+### Deferred
+- Generate-12 user workflow, full verification and real OpenAI smoke test.
+### Known limitations
+- Checkpoint remains STOP pending implementation and independently reviewable verification.

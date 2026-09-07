@@ -1,8 +1,12 @@
 # Takaven Go
 
-Takaven Go is TAKAVEN's internal AI-powered growth engine. This repository currently
-contains Stage 1 only: the application shell, LeaseDesk Product Truth, versioning,
-single-operator authentication, migrations, and audit logging.
+Takaven Go is TAKAVEN's internal evidence-led growth engine for the LeaseDesk pilot.
+
+Current project truth: **Stage 1 PASS · Stage 2 PASS · Stage 3A PASS · Stage 3B IN PROGRESS / STOP.**
+
+Stage 1 provides Product Truth, authentication, versioning and audit controls. Stage 2 provides the full manual growth loop. Stage 3A adds the OpenAI execution boundary and trace record. Stage 3B has partial server-side generation groundwork only; it is not user-accessible, verified, or accepted.
+
+Repository truth: [Product](docs/PRODUCT.md), [Architecture](docs/ARCHITECTURE.md), [Build Status](docs/BUILD_STATUS.md), [Decisions](docs/DECISIONS.md), [Benchmarks](docs/BENCHMARKS.md), [Testing](docs/TESTING.md), [Security](docs/SECURITY.md), [Limitations](docs/LIMITATIONS.md), and [Changelog](docs/CHANGELOG.md).
 
 ## Local setup
 
@@ -61,8 +65,3 @@ The guard is deliberate: this destructive integration test downgrades the target
 Alembic base before rebuilding it. It verifies the authenticated Truth workflow,
 PostgreSQL indexes and constraints, database-level immutability, atomic approval audit,
 clean downgrade/re-upgrade, and reseeding.
-# Takaven Go
-
-Internal evidence-led growth engine for the LeaseDesk pilot.
-
-Project truth is maintained in [Product](docs/PRODUCT.md), [Architecture](docs/ARCHITECTURE.md), [Build Status](docs/BUILD_STATUS.md), [Decisions](docs/DECISIONS.md), [Benchmarks](docs/BENCHMARKS.md), [Testing](docs/TESTING.md), [Security](docs/SECURITY.md), [Limitations](docs/LIMITATIONS.md), and [Changelog](docs/CHANGELOG.md).
