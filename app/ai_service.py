@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from openai import OpenAI
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.ai_schemas import Collision, CollisionBatch
@@ -16,6 +17,7 @@ from app.models import (
     AITaskType,
     Concept,
     CreativeRun,
+    CreativeRunStatus,
     Experiment,
     Learning,
     LearningStatus,
@@ -30,6 +32,10 @@ class AIConfigurationError(RuntimeError):
 
 class AIExecutionConflictError(RuntimeError):
     pass
+
+
+class AIProviderError(RuntimeError):
+    """Expected provider/transport failure safe to show as an execution error."""
 
 
 def openai_client(settings: Settings) -> OpenAI:
@@ -137,6 +143,8 @@ def frozen_generation_input(db: Session, run: CreativeRun) -> dict:
         "signals": [item.signal_snapshot for item in run.signals],
         "learnings": [
             {
+                "id": item.id,
+                "approved_at": item.approved_at.isoformat() if item.approved_at else None,
                 "content": item.content,
                 "confidence": item.confidence,
                 "qualification": item.qualification,
@@ -201,16 +209,30 @@ def _validated_batch(client: OpenAI, settings: Settings, payload: dict, repair: 
 def generate_collisions(
     db: Session, settings: Settings, run: CreativeRun, idempotency_key: str
 ) -> AIExecution:
-    execution = begin_execution(
-        db,
-        settings,
-        AITaskType.GENERATE_COLLISIONS,
-        "creative_run",
-        run.id,
-        idempotency_key,
-        "3b-v1",
-        "3b-v1",
+    if run.status != CreativeRunStatus.ACTIVE:
+        raise AIExecutionConflictError("Only active creative runs can generate concepts.")
+    prior_success = db.scalar(
+        select(AIExecution).where(
+            AIExecution.origin_type == "creative_run",
+            AIExecution.origin_id == run.id,
+            AIExecution.status == AIExecutionStatus.SUCCEEDED,
+        )
     )
+    if prior_success:
+        raise AIExecutionConflictError("This creative run already has its Generate-12 batch.")
+    try:
+        execution = begin_execution(
+            db,
+            settings,
+            AITaskType.GENERATE_COLLISIONS,
+            "creative_run",
+            run.id,
+            idempotency_key,
+            "3b-v1",
+            "3b-v1",
+        )
+    except IntegrityError as exc:
+        raise AIExecutionConflictError("This generation request is already in progress.") from exc
     try:
         client = openai_client(settings)
         mark_running(db, execution)
@@ -218,7 +240,7 @@ def generate_collisions(
         try:
             response, batch = _validated_batch(client, settings, payload, repair=False)
             attempts = 1
-        except ValueError:
+        except (ValueError, TypeError):
             response, batch = _validated_batch(client, settings, payload, repair=True)
             attempts = 2
         for item in batch.concepts:
@@ -239,10 +261,18 @@ def generate_collisions(
         }
         execution.completed_at = datetime.now(UTC)
         db.commit()
-    except Exception as exc:
+    except (AIConfigurationError, AIExecutionConflictError, ValueError, TypeError) as exc:
         db.rollback()
         execution = db.get(AIExecution, execution.id)
         if execution is not None:
             mark_failed(db, execution, exc)
         raise
+    except Exception as exc:
+        db.rollback()
+        execution = db.get(AIExecution, execution.id)
+        if execution is not None:
+            mark_failed(db, execution, exc)
+        raise AIProviderError(
+            "OpenAI could not complete this generation. Retry when ready."
+        ) from exc
     return execution

@@ -10,7 +10,12 @@ from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.ai_service import AIConfigurationError, AIExecutionConflictError, generate_collisions
+from app.ai_service import (
+    AIConfigurationError,
+    AIExecutionConflictError,
+    AIProviderError,
+    generate_collisions,
+)
 from app.auth import (
     COOKIE_NAME,
     authenticate_password,
@@ -477,7 +482,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         retry_index = len(previous)
         try:
             generate_collisions(db, settings, run, f"{run.id}:generate:{retry_index}")
-        except (AIConfigurationError, AIExecutionConflictError, ValueError) as exc:
+        except (AIConfigurationError, AIExecutionConflictError, AIProviderError, ValueError) as exc:
             return loop_error(request, db, "creative", str(exc), f"/creative/runs/{run_id}")
         return RedirectResponse(f"/creative/runs/{run_id}", status_code=303)
 

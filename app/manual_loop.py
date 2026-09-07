@@ -205,6 +205,10 @@ def save_concept(
             raise ManualLoopError("This concept cannot be edited here.")
         for key, value in cleaned.items():
             setattr(concept, key, value)
+        if concept.ai_execution_id:
+            from app.ai_service import Collision, claim_warnings
+
+            concept.claim_warnings = claim_warnings(Collision(**cleaned), run)
         concept.updated_at = _now()
     db.commit()
     return concept
