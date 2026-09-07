@@ -50,9 +50,12 @@ def main() -> None:
         run = create_creative_run(db, product, [signal.id])
         execution = generate_collisions(db, settings, run, "real-openai-synthetic-smoke")
         report = {
+            "execution_status": execution.status,
             "model": execution.model,
             "prompt_version": execution.prompt_version,
             "schema_version": execution.schema_version,
+            "request_id": execution.request_id,
+            "input_snapshot": execution.input_snapshot,
             "structural_validation": execution.result,
             "claim_warnings": [item.claim_warnings for item in run.concepts],
             "concepts": [

@@ -12,6 +12,8 @@ on:
       - stage3b-generation
     paths:
       - .github/workflows/real-openai-smoke.yml
+      - app/ai_service.py
+      - tests/real_openai_smoke.py
 
 jobs:
   smoke:

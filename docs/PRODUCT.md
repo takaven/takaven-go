@@ -20,4 +20,4 @@ Evidence precedes conclusion; operators own consequential decisions; frozen evid
 
 ## Not built
 
-AI collision generation, AI challenge, AI experiment drafting, AI learning drafting, live signal ingestion, and later V1 stages are **NOT BUILT**.
+AI challenge, AI experiment drafting, AI learning drafting, live signal ingestion, and later V1 stages are **NOT BUILT**. AI collision generation is implemented in Stage 3B but remains unaccepted pending real-output quality revalidation.

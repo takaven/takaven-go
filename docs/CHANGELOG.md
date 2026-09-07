@@ -29,6 +29,6 @@
 - Generate-12 UI, frozen-input provenance, bounded structural repair and one-batch database protection.
 - Real PostgreSQL Generate-12 persistence smoke and rendered twelve-card/shortlist-cap workflow verification.
 ### Deferred
-- Real OpenAI smoke and independent output-quality review.
+- Independent output-quality review of the single Stage 3B revalidation run.
 ### Known limitations
-- Checkpoint remains STOP pending implementation and independently reviewable verification.
+- First real OpenAI run executed: structure and grounding passed; output quality failed for demo-centric repetition and claim-warning false positives. Checkpoint remains STOP pending remediation revalidation.

@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.ai_schemas import Collision, CollisionBatch
 from app.ai_service import (
     AIExecutionConflictError,
+    claim_warnings,
     frozen_generation_input,
     generate_collisions,
     generation_evidence,
@@ -212,6 +213,24 @@ def test_frozen_truth_claim_warning_blocks_retain(app, monkeypatch):
         generate_collisions(db, settings(), run, "generation-4")
         concept = db.scalar(select(Concept).where(Concept.creative_run_id == run.id))
         assert "cash flow" in concept.claim_warnings
+
+
+def test_prohibited_phrase_only_in_dangerous_assumption_is_not_a_claim_warning(app):
+    with app.state.session_factory() as db:
+        product = product_for(db)
+        run = create_creative_run(db, product, [create_signal(db, product.id, signal_values()).id])
+        concept = collision(1).model_copy(
+            update={"dangerous_assumption": "They may assume online rent collection is included."}
+        )
+        assert claim_warnings(concept, run) == []
+
+
+def test_prohibited_phrase_in_commercial_field_remains_a_claim_warning(app):
+    with app.state.session_factory() as db:
+        product = product_for(db)
+        run = create_creative_run(db, product, [create_signal(db, product.id, signal_values()).id])
+        concept = collision(1).model_copy(update={"commercial_bridge": "Improve cash flow."})
+        assert "cash flow" in claim_warnings(concept, run)
 
 
 def test_successful_generation_blocks_a_second_batch_and_keeps_session_usable(app, monkeypatch):
