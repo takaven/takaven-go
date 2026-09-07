@@ -1,6 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -472,16 +473,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         run = db.get(CreativeRun, run_id)
         if run is None or run.product_id != leasedesk(db).id:
             raise HTTPException(status_code=404, detail="Creative run not found")
-        previous = list(
-            db.scalars(
-                select(AIExecution)
-                .where(AIExecution.origin_type == "creative_run", AIExecution.origin_id == run.id)
-                .order_by(AIExecution.created_at.desc())
-            )
-        )
-        retry_index = len(previous)
         try:
-            generate_collisions(db, settings, run, f"{run.id}:generate:{retry_index}")
+            generate_collisions(db, settings, run, f"{run.id}:generate:{uuid4()}")
         except (AIConfigurationError, AIExecutionConflictError, AIProviderError, ValueError) as exc:
             return loop_error(request, db, "creative", str(exc), f"/creative/runs/{run_id}")
         return RedirectResponse(f"/creative/runs/{run_id}", status_code=303)

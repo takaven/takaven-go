@@ -26,8 +26,8 @@
 ## [Checkpoint 3B — In progress]
 
 ### Added
-- Partial generation-service and provenance groundwork.
+- Generate-12 UI, frozen-input provenance, bounded structural repair and one-batch database protection.
 ### Deferred
-- Generate-12 user workflow, full verification and real OpenAI smoke test.
+- Real OpenAI smoke and independent output-quality review.
 ### Known limitations
 - Checkpoint remains STOP pending implementation and independently reviewable verification.

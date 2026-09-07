@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from app.ai_schemas import Collision, CollisionBatch
 from app.ai_service import (
+    AIExecutionConflictError,
     frozen_generation_input,
     generate_collisions,
     generation_evidence,
@@ -213,6 +214,19 @@ def test_frozen_truth_claim_warning_blocks_retain(app, monkeypatch):
         assert "cash flow" in concept.claim_warnings
 
 
+def test_successful_generation_blocks_a_second_batch_and_keeps_session_usable(app, monkeypatch):
+    with app.state.session_factory() as db:
+        product = product_for(db)
+        run = create_creative_run(db, product, [create_signal(db, product.id, signal_values()).id])
+        fake = FakeClient([CollisionBatch(concepts=[collision(i) for i in range(12)])])
+        monkeypatch.setattr("app.ai_service.openai_client", lambda _settings: fake)
+        generate_collisions(db, settings(), run, "first-batch")
+        with pytest.raises(AIExecutionConflictError):
+            generate_collisions(db, settings(), run, "second-batch")
+        assert db.get(Product, product.id) is not None
+        assert len(list(db.scalars(select(Concept).where(Concept.creative_run_id == run.id)))) == 12
+
+
 def test_generate_control_is_rendered_and_missing_configuration_is_recoverable(
     authenticated_client, app
 ):
@@ -222,7 +236,7 @@ def test_generate_control_is_rendered_and_missing_configuration_is_recoverable(
         run_id = run.id
     page = authenticated_client.get(f"/creative/runs/{run_id}")
     assert page.status_code == 200
-    assert "Generate 12 concepts" in page.text
+    assert "Generate 12 collisions" in page.text
     csrf = page.text.split('name="csrf" value="')[1].split('"')[0]
     response = authenticated_client.post(
         f"/creative/runs/{run_id}/generate", data={"csrf": csrf}, follow_redirects=True

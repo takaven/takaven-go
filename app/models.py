@@ -329,6 +329,19 @@ class AIExecution(Base):
         ),
         Index("uq_ai_execution_idempotency", "idempotency_key", unique=True),
         Index("ix_ai_execution_origin", "origin_type", "origin_id"),
+        Index(
+            "uq_ai_generate_active_or_succeeded",
+            "origin_type",
+            "origin_id",
+            "task_type",
+            unique=True,
+            postgresql_where=text(
+                "task_type = 'generate_collisions' AND status IN ('pending', 'running', 'succeeded')"
+            ),
+            sqlite_where=text(
+                "task_type = 'generate_collisions' AND status IN ('pending', 'running', 'succeeded')"
+            ),
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)

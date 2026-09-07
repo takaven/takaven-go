@@ -4,7 +4,7 @@ Takaven Go is TAKAVEN's internal evidence-led growth engine for the LeaseDesk pi
 
 Current project truth: **Stage 1 PASS · Stage 2 PASS · Stage 3A PASS · Stage 3B IN PROGRESS / STOP.**
 
-Stage 1 provides Product Truth, authentication, versioning and audit controls. Stage 2 provides the full manual growth loop. Stage 3A adds the OpenAI execution boundary and trace record. Stage 3B has partial server-side generation groundwork only; it is not user-accessible, verified, or accepted.
+Stage 1 provides Product Truth, authentication, versioning and audit controls. Stage 2 provides the full manual growth loop. Stage 3A adds the OpenAI execution boundary and trace record. Stage 3B's Generate-12 path is implemented on this PR branch and verified with mocked and integration checks. It remains STOP pending a controlled real-OpenAI generation and independent output-quality review.
 
 Repository truth: [Product](docs/PRODUCT.md), [Architecture](docs/ARCHITECTURE.md), [Build Status](docs/BUILD_STATUS.md), [Decisions](docs/DECISIONS.md), [Benchmarks](docs/BENCHMARKS.md), [Testing](docs/TESTING.md), [Security](docs/SECURITY.md), [Limitations](docs/LIMITATIONS.md), and [Changelog](docs/CHANGELOG.md).
 
