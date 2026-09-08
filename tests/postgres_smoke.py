@@ -434,9 +434,8 @@ def verify_generate_collisions_postgresql() -> dict:
     try:
         with session_factory() as db:
             product = leasedesk(db)
-            signals = [create_signal(db, product.id, signal_values()) for _ in range(3)]
             run = create_creative_run(
-                db, product, sorted((signal.id for signal in signals), reverse=True)
+                db, product, [create_signal(db, product.id, signal_values()).id]
             )
             warned = collision(0, "Show cash flow visibility")
             ai_service.openai_client = lambda _settings: FakeClient(
@@ -449,9 +448,6 @@ def verify_generate_collisions_postgresql() -> dict:
             assert execution.result["attempt_count"] == 1
             assert execution.input_snapshot["truth"] == run.truth_snapshot
             assert execution.input_snapshot["signals"]
-            assert [item["id"] for item in execution.input_snapshot["signals"]] == sorted(
-                signal.id for signal in signals
-            )
             assert len(concepts) == 12
             assert all(concept.ai_execution_id == execution.id for concept in concepts)
             assert "cash flow" in concepts[0].claim_warnings
@@ -527,9 +523,14 @@ def verify_challenge_concept_postgresql() -> dict:
     try:
         with session_factory() as db:
             product = leasedesk(db)
-            run = create_creative_run(
-                db, product, [create_signal(db, product.id, signal_values()).id]
-            )
+            signals = []
+            for index in range(3):
+                values = signal_values()
+                values["source"] = f"PostgreSQL challenge source {index}"
+                values["evidence"] = f"PostgreSQL challenge evidence {index}"
+                signals.append(create_signal(db, product.id, values))
+            expected_signal_ids = [signal.id for signal in signals]
+            run = create_creative_run(db, product, sorted(expected_signal_ids, reverse=True))
             source_concept = save_concept(
                 db,
                 run,
@@ -584,6 +585,9 @@ def verify_challenge_concept_postgresql() -> dict:
             assert execution.input_fingerprint and len(execution.input_fingerprint) == 64
             assert execution.input_snapshot["truth"] == run.truth_snapshot
             assert execution.input_snapshot["signals"]
+            assert [item["id"] for item in execution.input_snapshot["signals"]] == sorted(
+                expected_signal_ids
+            )
             assert execution.input_snapshot["learnings"][0]["id"] == learning.id
             assert execution.result["assessment"]["remarkable"]["verdict"] == "PASS"
             assert execution.result["attempt_count"] == 1
