@@ -81,7 +81,7 @@ def progression(db: Session, product: Product, truth_version: int) -> dict:
     elif not any(item.challenge for item in concepts if item.status == ConceptStatus.SHORTLISTED):
         current, next_action, latest = (
             "Challenge",
-            "Shortlist up to three concepts, then challenge one.",
+            "Shortlist up to three concepts, use AI challenge as a second opinion, then save your manual challenge.",
             "Concepts in play",
         )
     elif experiment is None:

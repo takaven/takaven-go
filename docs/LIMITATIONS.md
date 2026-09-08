@@ -6,4 +6,4 @@
 - Stage 3B is accepted. Its first real OpenAI run passed structural/grounding checks but failed output-quality review for demo-centric repetition and claim-warning false positives; the documented second gpt-5.6-sol / 3b-v2 revalidation passed independent review.
 - Product Truth is LeaseDesk-only and some truth fields remain explicitly inferred.
 - Production cost, latency, and deployment behavior remain unverified.
-- Stage 3C Slice 1 provides only the challenge schema, service, provenance and database invariants. Rendered challenge states, operator revision/rechallenge, and the two-action real-provider quality gate have not started.
+- Stage 3C Slice 1 is accepted. Slice 2's rendered initial challenge is implemented and under review. Operator revision/rechallenge and the two-action real-provider quality gate have not started; historical assessments are intentionally read-only and cannot trigger another AI assessment in Slice 2.

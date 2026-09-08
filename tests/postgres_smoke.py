@@ -22,7 +22,12 @@ from psycopg import errors
 from sqlalchemy import select
 
 from app.ai_schemas import ChallengeAssessment, Collision, CollisionBatch
-from app.ai_service import AIExecutionConflictError, challenge_concept, generate_collisions
+from app.ai_service import (
+    AIChallengeValidationError,
+    AIExecutionConflictError,
+    challenge_concept,
+    generate_collisions,
+)
 from app.config import Settings
 from app.database import build_engine, build_session_factory
 from app.manual_loop import create_creative_run, create_signal, save_concept, shortlist_concept
@@ -662,7 +667,7 @@ def verify_challenge_concept_postgresql() -> dict:
             )
             try:
                 challenge_concept(db, settings, failed_concept, "pg-challenge-failed")
-            except ValueError:
+            except AIChallengeValidationError:
                 pass
             else:
                 raise AssertionError("Expected deterministic challenge validation failure")
