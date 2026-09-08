@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.ai_schemas import ChallengeAssessment
 from app.ai_service import (
+    AIChallengeValidationError,
     AIConfigurationError,
     AIExecutionConflictError,
     AIProviderError,
@@ -266,7 +267,7 @@ def test_second_malformed_challenge_fails_and_same_fingerprint_can_retry(app, mo
         first = install_client(
             monkeypatch, [assessment("invented:first"), assessment("invented:second")]
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(AIChallengeValidationError):
             challenge_concept(db, settings(), concept, "challenge-failed")
         failed = db.scalar(
             select(AIExecution).where(AIExecution.idempotency_key == "challenge-failed")
@@ -277,6 +278,18 @@ def test_second_malformed_challenge_fails_and_same_fingerprint_can_retry(app, mo
         succeeded = challenge_concept(db, settings(), concept, "challenge-retry")
         assert succeeded.status == AIExecutionStatus.SUCCEEDED
         assert len(second.calls) == 1
+
+
+@pytest.mark.parametrize("unexpected", [TypeError("programming defect"), ValueError("defect")])
+def test_unexpected_challenge_errors_propagate_without_structural_repair(
+    app, monkeypatch, unexpected
+):
+    with app.state.session_factory() as db:
+        _, _, concept = shortlisted_concept(db)
+        fake = install_client(monkeypatch, [unexpected])
+        with pytest.raises(type(unexpected), match=str(unexpected)):
+            challenge_concept(db, settings(), concept, f"unexpected-{type(unexpected).__name__}")
+        assert len(fake.calls) == 1
 
 
 def test_provider_failure_is_failed_without_repair_and_preserves_snapshot(app, monkeypatch):

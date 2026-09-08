@@ -66,7 +66,7 @@ KNOWN TEST GAPS: revision/rechallenge, real-provider initial/rechallenge quality
 
 CHECKPOINT: Stage 3C Slice 2 rendered initial challenge
 DATE: 2026-09-08
-AUTOMATED: PASS — authenticated/CSRF route controls, current-fingerprint execution selection, eligibility states, safe failure/retry, successful five-gate rendering, evidence references, summary judgment, provenance trace, stale historical assessment and direct-POST rechallenge blocking.
+AUTOMATED: PASS — authenticated/CSRF route controls, current-fingerprint execution selection, eligibility states, safe failure/retry, successful five-gate rendering, evidence references, summary judgment, provenance trace, stale historical assessment and direct-POST rechallenge blocking. Exhausted known structural validation produces a failed execution and safe 422, while deliberately injected unrelated `ValueError` and `TypeError` defects propagate.
 POSTGRESQL: PASS — existing Slice 1 challenge invariants and Stage 3B service persistence remain covered; Slice 2 adds no schema.
 UI: PASS — deterministic rendered HTTP workflow proves AI challenge, manual form separation, no AI domain transition, manual challenge save and operator decision availability.
 REAL API: NOT RUN — intentionally excluded from Slice 2.

@@ -56,6 +56,7 @@
 
 ### Verified
 - Deterministic rendered route and end-to-end HTTP workflow coverage, including safe provider failure, explicit retry, stale-result handling and zero AI-created domain transitions.
+- A task-specific exhausted-structure error preserves the safe 422 path without masking unrelated `ValueError` or `TypeError` programming defects.
 
 ### Not started
 - Slice 3 operator revision/rechallenge and the Stage 3C real-provider initial/rechallenge quality gate.

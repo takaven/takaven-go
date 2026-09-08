@@ -8,7 +8,7 @@ from pydantic import SecretStr
 from sqlalchemy import select
 
 from app.ai_schemas import ChallengeAssessment
-from app.ai_service import concept_input_fingerprint
+from app.ai_service import AIChallengeValidationError, concept_input_fingerprint
 from app.manual_loop import (
     GATE_NAMES,
     create_creative_run,
@@ -267,6 +267,55 @@ def test_provider_failure_is_safe_and_retry_succeeds(authenticated_client, app, 
             AIExecutionStatus.SUCCEEDED,
         ]
         assert executions[0].idempotency_key != executions[1].idempotency_key
+
+
+def test_exhausted_structural_validation_is_safe_and_preserves_operator_work(
+    authenticated_client, app, monkeypatch
+):
+    _, concept_id = create_concept(app)
+    invalid = assessment().model_copy(
+        update={
+            "remarkable": assessment().remarkable.model_copy(
+                update={"evidence_refs": ["invented:reference"]}
+            )
+        }
+    )
+    install_fake_provider(app, monkeypatch, [invalid, invalid])
+    page = authenticated_client.get(f"/creative/concepts/{concept_id}/challenge")
+    response = authenticated_client.post(
+        f"/creative/concepts/{concept_id}/ai-challenge",
+        data={"csrf": csrf_from(page.text)},
+    )
+    assert response.status_code == 422
+    assert "structured assessment was invalid after its bounded repair attempt" in response.text
+    assert "invented:reference" not in response.text
+    assert "Retry AI challenge" in response.text
+    with app.state.session_factory() as db:
+        concept = db.get(Concept, concept_id)
+        execution = db.scalar(select(AIExecution).where(AIExecution.origin_id == concept_id))
+        assert execution.status == AIExecutionStatus.FAILED
+        assert execution.error_code == AIChallengeValidationError.__name__
+        assert execution.input_snapshot["concept"]["tension"] == concept.tension
+        assert concept.challenge is None
+        assert concept.status == ConceptStatus.SHORTLISTED
+
+
+@pytest.mark.parametrize("unexpected", [TypeError("route defect"), ValueError("route defect")])
+def test_unexpected_programming_errors_are_not_converted_to_friendly_422(
+    authenticated_client, app, monkeypatch, unexpected
+):
+    _, concept_id = create_concept(app)
+    page = authenticated_client.get(f"/creative/concepts/{concept_id}/challenge")
+
+    def raise_unexpected(*_args, **_kwargs):
+        raise unexpected
+
+    monkeypatch.setattr("app.main.challenge_concept", raise_unexpected)
+    with pytest.raises(type(unexpected), match="route defect"):
+        authenticated_client.post(
+            f"/creative/concepts/{concept_id}/ai-challenge",
+            data={"csrf": csrf_from(page.text)},
+        )
 
 
 def test_successful_rendered_ai_challenge_preserves_human_control(

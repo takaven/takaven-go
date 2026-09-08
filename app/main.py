@@ -12,6 +12,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.ai_service import (
+    AIChallengeValidationError,
     AIConfigurationError,
     AIExecutionConflictError,
     AIProviderError,
@@ -669,17 +670,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             AIConfigurationError,
             AIExecutionConflictError,
             AIProviderError,
-            ValidationError,
-            ValueError,
-            TypeError,
+            AIChallengeValidationError,
         ) as exc:
             db.rollback()
             db.expire_all()
             concept = db.get(Concept, concept_id)
-            if isinstance(exc, (AIConfigurationError, AIExecutionConflictError, AIProviderError)):
-                detail = str(exc)
-            else:
+            if isinstance(exc, AIChallengeValidationError):
                 detail = "The structured assessment was invalid after its bounded repair attempt."
+            else:
+                detail = str(exc)
             context = challenge_workspace_context(
                 request,
                 db,

@@ -41,6 +41,14 @@ class AIProviderError(RuntimeError):
     """Expected provider/transport failure safe to show as an execution error."""
 
 
+class AIChallengeStructureError(RuntimeError):
+    """A challenge response violated the task-owned structural contract."""
+
+
+class AIChallengeValidationError(RuntimeError):
+    """Challenge output remained structurally invalid after its bounded repair."""
+
+
 def openai_client(settings: Settings) -> OpenAI:
     if settings.openai_api_key is None or not settings.openai_api_key.get_secret_value():
         raise AIConfigurationError("OpenAI is not configured. Add OPENAI_API_KEY server-side.")
@@ -432,12 +440,14 @@ def _validate_challenge_refs(assessment: ChallengeAssessment, allowed_refs: set[
         if not any(ref.startswith("concept.") for ref in concern.evidence_refs) or not any(
             ref.startswith("truth.") for ref in concern.evidence_refs
         ):
-            raise ValueError(
+            raise AIChallengeStructureError(
                 "Each unsupported-claim concern must reference a concept field and its Truth basis."
             )
     unknown = sorted(set(returned) - allowed_refs)
     if unknown:
-        raise ValueError(f"Challenge returned unknown evidence references: {', '.join(unknown)}")
+        raise AIChallengeStructureError(
+            f"Challenge returned unknown evidence references: {', '.join(unknown)}"
+        )
 
 
 def _validated_challenge(
@@ -461,7 +471,7 @@ def _validated_challenge(
     )
     assessment = response.output_parsed
     if assessment is None:
-        raise ValueError("OpenAI did not return a valid challenge assessment.")
+        raise AIChallengeStructureError("OpenAI did not return a valid challenge assessment.")
     _validate_challenge_refs(assessment, allowed_refs)
     return response, assessment
 
@@ -496,10 +506,15 @@ def challenge_concept(
                 client, settings, payload, allowed_refs, repair=False
             )
             attempts = 1
-        except (ValidationError, ValueError, TypeError):
-            response, assessment = _validated_challenge(
-                client, settings, payload, allowed_refs, repair=True
-            )
+        except (ValidationError, AIChallengeStructureError):
+            try:
+                response, assessment = _validated_challenge(
+                    client, settings, payload, allowed_refs, repair=True
+                )
+            except (ValidationError, AIChallengeStructureError) as exc:
+                raise AIChallengeValidationError(
+                    "OpenAI returned an invalid challenge assessment after one repair attempt."
+                ) from exc
             attempts = 2
         execution.status = AIExecutionStatus.SUCCEEDED
         execution.request_id = getattr(response, "_request_id", None)
@@ -513,9 +528,7 @@ def challenge_concept(
     except (
         AIConfigurationError,
         AIExecutionConflictError,
-        ValidationError,
-        ValueError,
-        TypeError,
+        AIChallengeValidationError,
     ) as exc:
         db.rollback()
         execution = db.get(AIExecution, execution.id)
