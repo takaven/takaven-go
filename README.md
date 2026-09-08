@@ -2,9 +2,9 @@
 
 Takaven Go is TAKAVEN's internal evidence-led growth engine for the LeaseDesk pilot.
 
-Current project truth: **Stage 1 PASS · Stage 2 PASS · Stage 3A PASS · Stage 3B PASS / ACCEPTED · Stage 3C NOT STARTED.**
+Current project truth: **Stage 1 PASS · Stage 2 PASS · Stage 3A PASS · Stage 3B PASS / ACCEPTED · Stage 3C design FROZEN · Stage 3C Slice 1 UNDER REVIEW.**
 
-Stage 1 provides Product Truth, authentication, versioning and audit controls. Stage 2 provides the full manual growth loop. Stage 3A adds the OpenAI execution boundary and trace record. Stage 3B's Generate-12 path passed deterministic verification and two independently reviewed real-OpenAI quality runs; Stage 3C has not started.
+Stage 1 provides Product Truth, authentication, versioning and audit controls. Stage 2 provides the full manual growth loop. Stage 3A adds the OpenAI execution boundary and trace record. Stage 3B's Generate-12 path passed deterministic verification and two independently reviewed real-OpenAI quality runs. Stage 3C Slice 1 implements the service/database foundation for an initial blind challenge of one shortlisted concept; no rendered AI-challenge or rechallenge workflow exists yet.
 
 Repository truth: [Product](docs/PRODUCT.md), [Architecture](docs/ARCHITECTURE.md), [Build Status](docs/BUILD_STATUS.md), [Decisions](docs/DECISIONS.md), [Benchmarks](docs/BENCHMARKS.md), [Testing](docs/TESTING.md), [Security](docs/SECURITY.md), [Limitations](docs/LIMITATIONS.md), and [Changelog](docs/CHANGELOG.md).
 
@@ -64,4 +64,4 @@ Point `DATABASE_URL` at an empty, disposable PostgreSQL database whose name cont
 The guard is deliberate: this destructive integration test downgrades the target to
 Alembic base before rebuilding it. It verifies the authenticated Truth workflow,
 PostgreSQL indexes and constraints, database-level immutability, atomic approval audit,
-clean downgrade/re-upgrade, and reseeding.
+clean downgrade/re-upgrade, reseeding, and the Stage 3B/3C AI service persistence and database invariants.

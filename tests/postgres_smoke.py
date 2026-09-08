@@ -21,12 +21,21 @@ import psycopg
 from psycopg import errors
 from sqlalchemy import select
 
-from app.ai_schemas import Collision, CollisionBatch
-from app.ai_service import AIExecutionConflictError, generate_collisions
+from app.ai_schemas import ChallengeAssessment, Collision, CollisionBatch
+from app.ai_service import AIExecutionConflictError, challenge_concept, generate_collisions
 from app.config import Settings
 from app.database import build_engine, build_session_factory
-from app.manual_loop import create_creative_run, create_signal, save_concept
-from app.models import AIExecution, AIExecutionStatus, Concept
+from app.manual_loop import create_creative_run, create_signal, save_concept, shortlist_concept
+from app.models import (
+    AIExecution,
+    AIExecutionStatus,
+    Challenge,
+    Concept,
+    ConceptStatus,
+    Experiment,
+    Learning,
+    LearningStatus,
+)
 from app.seed import LEASEDESK_TRUTH
 from app.services import leasedesk
 
@@ -74,6 +83,22 @@ def collision(index: int, bridge: str = "Request a LeaseDesk walkthrough") -> Co
         distribution="Named landlord group",
         commercial_bridge=bridge,
         dangerous_assumption="They care",
+    )
+
+
+def challenge_assessment(ref: str = "concept.creative_mechanic") -> ChallengeAssessment:
+    gate = {"verdict": "PASS", "reasoning": "Grounded assessment.", "evidence_refs": [ref]}
+    return ChallengeAssessment(
+        remarkable=gate,
+        logo_off=gate,
+        product_owned=gate,
+        commercially_convertible=gate,
+        buyable_internally_defensible=gate,
+        strongest_reason="LeaseDesk visibly updates operational state.",
+        strongest_objection="The participation burden may be too high.",
+        unsupported_claims=[],
+        smallest_repair="Reduce the participation burden.",
+        recommendation="GO",
     )
 
 
@@ -296,7 +321,19 @@ def verify_ai_execution_integrity() -> dict:
                 "AND tablename='ai_executions'"
             )
         }
-        assert {"uq_ai_execution_idempotency", "ix_ai_execution_origin"} <= indexes
+        assert {
+            "uq_ai_execution_idempotency",
+            "ix_ai_execution_origin",
+            "uq_ai_challenge_snapshot_active_or_succeeded",
+        } <= indexes
+        columns = {
+            row[0]
+            for row in connection.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema='public' AND table_name='ai_executions'"
+            )
+        }
+        assert "input_fingerprint" in columns
         constraints = {
             row[0]
             for row in connection.execute(
@@ -344,6 +381,7 @@ def verify_ai_execution_integrity() -> dict:
         "ai_execution_indexes_verified": True,
         "ai_execution_constraints_verified": True,
         "ai_execution_idempotency_verified": True,
+        "ai_challenge_fingerprint_schema_verified": True,
     }
 
 
@@ -456,6 +494,180 @@ def verify_generate_collisions_postgresql() -> dict:
     }
 
 
+def verify_challenge_concept_postgresql() -> dict:
+    """Drive the Stage 3C Slice 1 service and invariants on real PostgreSQL."""
+    import app.ai_service as ai_service
+
+    settings = Settings(
+        database_url=os.environ["DATABASE_URL"],
+        operator_password=os.environ["OPERATOR_PASSWORD"],
+        session_secret=os.environ["SESSION_SECRET"],
+        cookie_secure=False,
+        openai_api_key="pg-fake-key",
+        openai_model="pg-fake-model",
+    )
+    session_factory = build_session_factory(build_engine(settings))
+    original_client = ai_service.openai_client
+    try:
+        with session_factory() as db:
+            product = leasedesk(db)
+            run = create_creative_run(
+                db, product, [create_signal(db, product.id, signal_values()).id]
+            )
+            source_concept = save_concept(
+                db,
+                run,
+                {
+                    "tension": "Invisible state",
+                    "creative_mechanic": "A state-change challenge",
+                    "artifact": "Evidence board",
+                    "product_proof": "Record payment and reveal updated arrears state",
+                    "participation": "Landlords submit a state question",
+                    "distribution": "Owner-operator roundtable",
+                    "commercial_bridge": "Inspect the state in LeaseDesk",
+                    "dangerous_assumption": "Owners participate",
+                },
+            )
+            learning_concept = save_concept(
+                db,
+                run,
+                {
+                    field: f"learning {field}"
+                    for field in (
+                        "tension",
+                        "creative_mechanic",
+                        "artifact",
+                        "product_proof",
+                        "participation",
+                        "distribution",
+                        "commercial_bridge",
+                        "dangerous_assumption",
+                    )
+                },
+            )
+            learning_experiment = Experiment(
+                product_id=product.id,
+                concept_id=learning_concept.id,
+                truth_version_id=run.truth_version_id,
+            )
+            db.add(learning_experiment)
+            db.flush()
+            learning = Learning(
+                experiment_id=learning_experiment.id,
+                content="Public state proof earns attention.",
+                confidence="qualified",
+                qualification="Synthetic PostgreSQL fixture",
+                status=LearningStatus.APPROVED,
+            )
+            db.add(learning)
+            shortlist_concept(db, source_concept)
+
+            ai_service.openai_client = lambda _settings: FakeClient([challenge_assessment()])
+            execution = challenge_concept(db, settings, source_concept, "pg-challenge-success")
+            assert execution.status == AIExecutionStatus.SUCCEEDED
+            assert execution.input_fingerprint and len(execution.input_fingerprint) == 64
+            assert execution.input_snapshot["truth"] == run.truth_snapshot
+            assert execution.input_snapshot["signals"]
+            assert execution.input_snapshot["learnings"][0]["id"] == learning.id
+            assert execution.result["assessment"]["remarkable"]["verdict"] == "PASS"
+            assert execution.result["attempt_count"] == 1
+            assert source_concept.status == ConceptStatus.SHORTLISTED
+            assert source_concept.challenge is None
+            assert (
+                db.scalar(select(Experiment).where(Experiment.concept_id == source_concept.id))
+                is None
+            )
+            with psycopg.connect(database_url(), autocommit=True) as connection:
+                expect_database_error(
+                    connection,
+                    errors.RaiseException,
+                    "UPDATE ai_executions SET result='{}'::json WHERE id=%s",
+                    (execution.id,),
+                )
+                expect_database_error(
+                    connection,
+                    errors.RaiseException,
+                    "DELETE FROM ai_executions WHERE id=%s",
+                    (execution.id,),
+                )
+            try:
+                challenge_concept(db, settings, source_concept, "pg-challenge-duplicate")
+            except AIExecutionConflictError:
+                pass
+            else:
+                raise AssertionError("Same-fingerprint challenge duplicate was not blocked")
+
+            original_fingerprint = execution.input_fingerprint
+            source_concept.tension = "Revised invisible state"
+            db.commit()
+            ai_service.openai_client = lambda _settings: FakeClient([challenge_assessment()])
+            revised = challenge_concept(db, settings, source_concept, "pg-challenge-revised")
+            assert revised.input_fingerprint != original_fingerprint
+
+            failed_run = create_creative_run(
+                db, product, [create_signal(db, product.id, signal_values()).id]
+            )
+            failed_concept = save_concept(
+                db,
+                failed_run,
+                {
+                    field: f"failed {field}"
+                    for field in (
+                        "tension",
+                        "creative_mechanic",
+                        "artifact",
+                        "product_proof",
+                        "participation",
+                        "distribution",
+                        "commercial_bridge",
+                        "dangerous_assumption",
+                    )
+                },
+            )
+            shortlist_concept(db, failed_concept)
+            manual = Challenge(
+                concept_id=failed_concept.id,
+                gates={"manual": "preserved"},
+                strongest_reason="Manual reason",
+                strongest_objection="Manual objection",
+                unsupported_claims="None",
+                unsupported_resolved=True,
+                smallest_repair="None",
+                recommendation="go",
+            )
+            db.add(manual)
+            db.commit()
+            ai_service.openai_client = lambda _settings: FakeClient(
+                [challenge_assessment("unknown:first"), challenge_assessment("unknown:second")]
+            )
+            try:
+                challenge_concept(db, settings, failed_concept, "pg-challenge-failed")
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("Expected deterministic challenge validation failure")
+            failed_execution = db.scalar(
+                select(AIExecution).where(AIExecution.idempotency_key == "pg-challenge-failed")
+            )
+            assert failed_execution.status == AIExecutionStatus.FAILED
+            assert db.get(Concept, failed_concept.id).status == ConceptStatus.SHORTLISTED
+            assert db.get(Challenge, manual.id).gates == {"manual": "preserved"}
+            ai_service.openai_client = lambda _settings: FakeClient([challenge_assessment()])
+            retried = challenge_concept(db, settings, failed_concept, "pg-challenge-retry")
+            assert retried.status == AIExecutionStatus.SUCCEEDED
+    finally:
+        ai_service.openai_client = original_client
+    return {
+        "postgresql_challenge_service": True,
+        "postgresql_challenge_snapshot_provenance": True,
+        "postgresql_challenge_slot_invariant": True,
+        "postgresql_challenge_failed_retry": True,
+        "postgresql_challenge_different_fingerprint": True,
+        "postgresql_challenge_domain_state_preserved": True,
+        "postgresql_challenge_terminal_immutability": True,
+    }
+
+
 def verify_clean_state(expected_tables: bool) -> None:
     with psycopg.connect(database_url()) as connection:
         tables = {
@@ -479,6 +691,7 @@ def main() -> None:
     result.update(verify_ai_execution_integrity())
     result.update(verify_generation_provenance_schema())
     result.update(verify_generate_collisions_postgresql())
+    result.update(verify_challenge_concept_postgresql())
 
     run_alembic("downgrade", "base")
     verify_clean_state(expected_tables=False)
