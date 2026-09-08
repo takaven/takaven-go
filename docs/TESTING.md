@@ -54,8 +54,8 @@ KNOWN TEST GAPS: Production deployment behavior.
 
 CHECKPOINT: Stage 3C Slice 1 challenge foundation
 DATE: 2026-09-08
-AUTOMATED: PASS — deterministic concept fingerprint, blind frozen input, same-product Learning scope/order, fixed five-gate schema, evidence-reference validation, one bounded repair, provider/configuration failures, duplicate/retry/edit eligibility, and zero domain transitions.
-POSTGRESQL: PASS — actual challenge service persistence, snapshot provenance, partial unique challenge slot, failed retry, changed-fingerprint eligibility, state preservation, and migration downgrade/re-upgrade through the current head.
+AUTOMATED: PASS — deterministic concept fingerprint, blind atomically persisted frozen input, deterministic Signal ordering, same-product Learning scope/order, fixed five-gate schema, evidence-reference validation, one bounded repair, provider/configuration failures, duplicate/retry/edit eligibility, task-specific conflict messages, required challenge fingerprints, and zero domain transitions.
+POSTGRESQL: PASS — actual challenge service persistence, deterministic multi-Signal snapshot provenance, non-null challenge fingerprint constraint, partial unique challenge slot, failed retry, changed-fingerprint eligibility, terminal provenance immutability, state preservation, and migration downgrade/re-upgrade through the current head.
 UI: NOT STARTED — intentionally excluded from Slice 1.
 REAL API: NOT RUN — intentionally excluded from Slice 1.
 REGRESSION: Stage 1–3B PASS.

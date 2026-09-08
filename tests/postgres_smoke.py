@@ -341,6 +341,7 @@ def verify_ai_execution_integrity() -> dict:
             )
         }
         assert "ck_ai_execution_status" in constraints
+        assert "ck_ai_challenge_requires_fingerprint" in constraints
         execution_id = str(uuid.uuid4())
         values = (
             execution_id,
@@ -376,12 +377,23 @@ def verify_ai_execution_integrity() -> dict:
             "UPDATE ai_executions SET status='invalid' WHERE id=%s",
             (execution_id,),
         )
+        expect_database_error(
+            connection,
+            errors.CheckViolation,
+            "INSERT INTO ai_executions "
+            "(id, task_type, status, provider, model, prompt_version, schema_version, "
+            "origin_type, origin_id, idempotency_key, created_at) "
+            "VALUES (%s, 'challenge_concept', 'pending', 'openai', 'test-model', 'v1', "
+            "'v1', 'concept', %s, %s, now())",
+            (str(uuid.uuid4()), str(uuid.uuid4()), "missing-challenge-fingerprint"),
+        )
     return {
         "ai_execution_schema_verified": True,
         "ai_execution_indexes_verified": True,
         "ai_execution_constraints_verified": True,
         "ai_execution_idempotency_verified": True,
         "ai_challenge_fingerprint_schema_verified": True,
+        "ai_challenge_fingerprint_required": True,
     }
 
 
@@ -422,8 +434,9 @@ def verify_generate_collisions_postgresql() -> dict:
     try:
         with session_factory() as db:
             product = leasedesk(db)
+            signals = [create_signal(db, product.id, signal_values()) for _ in range(3)]
             run = create_creative_run(
-                db, product, [create_signal(db, product.id, signal_values()).id]
+                db, product, sorted((signal.id for signal in signals), reverse=True)
             )
             warned = collision(0, "Show cash flow visibility")
             ai_service.openai_client = lambda _settings: FakeClient(
@@ -436,6 +449,9 @@ def verify_generate_collisions_postgresql() -> dict:
             assert execution.result["attempt_count"] == 1
             assert execution.input_snapshot["truth"] == run.truth_snapshot
             assert execution.input_snapshot["signals"]
+            assert [item["id"] for item in execution.input_snapshot["signals"]] == sorted(
+                signal.id for signal in signals
+            )
             assert len(concepts) == 12
             assert all(concept.ai_execution_id == execution.id for concept in concepts)
             assert "cash flow" in concepts[0].claim_warnings
@@ -660,6 +676,7 @@ def verify_challenge_concept_postgresql() -> dict:
     return {
         "postgresql_challenge_service": True,
         "postgresql_challenge_snapshot_provenance": True,
+        "postgresql_challenge_multi_signal_order": True,
         "postgresql_challenge_slot_invariant": True,
         "postgresql_challenge_failed_retry": True,
         "postgresql_challenge_different_fingerprint": True,

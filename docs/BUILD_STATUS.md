@@ -11,13 +11,13 @@ IMPLEMENTED / UNDER REVIEW: Stage 3C Slice 1 service/database foundation for a b
 
 NOT STARTED: rendered AI challenge, revision/rechallenge UI, AI experiment drafting, AI learning drafting, Stage 4.
 
-ACCEPTED: Stage 3B. Stage 3C has not started.
+ACCEPTED: Stage 3B. Stage 3C implementation has started; Stage 3C overall is NOT ACCEPTED / NOT PASS.
 
 VERIFIED: Stage 1–2 PostgreSQL, UI workflow, automated suite; Stage 3A PostgreSQL, configuration failure, UI regression, automated suite; Stage 3B Generate-12 service persistence on real PostgreSQL, provenance, warnings, one-batch invariant, failure preservation, rendered UI workflow and bounded retry.
 
 REAL OPENAI AUDIT HISTORY: Run 1 used gpt-5.6-sol / 3b-v1: structural and grounding PASS; output quality FAIL for demo-centric semantic repetition and claim-warning false positives. Run 2 used gpt-5.6-sol / 3b-v2: execution PASS, exactly 12, one attempt/no repair, zero claim warnings, independent output-quality PASS; Stage 3B accepted.
 
-STAGE 3C DESIGN: FROZEN.
+STAGE 3C DESIGN: FROZEN. Slice 1: IMPLEMENTED / UNDER REVIEW. Slice 2 rendered challenge: NOT STARTED. Slice 3 revision/rechallenge: NOT STARTED.
 
 STAGE 3C REAL-PROVIDER QUALITY GATE: NOT RUN.
 

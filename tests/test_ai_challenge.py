@@ -6,6 +6,7 @@ import pytest
 from openai import APIConnectionError
 from pydantic import ValidationError
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.ai_schemas import ChallengeAssessment
 from app.ai_service import (
@@ -21,6 +22,7 @@ from app.manual_loop import create_creative_run, create_signal, save_concept, sh
 from app.models import (
     AIExecution,
     AIExecutionStatus,
+    AITaskType,
     Challenge,
     ConceptStatus,
     CreativeRun,
@@ -305,6 +307,58 @@ def test_missing_configuration_records_failure_without_calling_provider(app):
         assert execution.input_snapshot["concept"]["tension"] == concept.tension
 
 
+def test_challenge_input_is_persisted_atomically_with_pending_execution(app, monkeypatch):
+    with app.state.session_factory() as db:
+        _, _, concept = shortlisted_concept(db)
+        fake = FakeClient([assessment()])
+
+        def inspect_initial_persistence(_settings):
+            with app.state.session_factory() as verification_db:
+                execution = verification_db.scalar(
+                    select(AIExecution).where(
+                        AIExecution.idempotency_key == "challenge-atomic-input"
+                    )
+                )
+                assert execution.status == AIExecutionStatus.PENDING
+                assert execution.input_fingerprint
+                assert execution.input_snapshot["concept"]["tension"] == concept.tension
+            return fake
+
+        monkeypatch.setattr("app.ai_service.openai_client", inspect_initial_persistence)
+        challenge_concept(db, settings(), concept, "challenge-atomic-input")
+
+
+def test_database_requires_fingerprint_only_for_challenge_executions(app):
+    with app.state.session_factory() as db:
+        common = {
+            "status": AIExecutionStatus.PENDING,
+            "provider": "openai",
+            "model": "test-model",
+            "prompt_version": "test-prompt",
+            "schema_version": "test-schema",
+            "origin_type": "concept",
+            "origin_id": "00000000-0000-0000-0000-000000000001",
+        }
+        db.add(
+            AIExecution(
+                task_type=AITaskType.CHALLENGE_CONCEPT,
+                idempotency_key="missing-challenge-fingerprint",
+                **common,
+            )
+        )
+        with pytest.raises(IntegrityError):
+            db.commit()
+        db.rollback()
+        db.add(
+            AIExecution(
+                task_type=AITaskType.GENERATE_COLLISIONS,
+                idempotency_key="generation-without-fingerprint",
+                **common,
+            )
+        )
+        db.commit()
+
+
 def test_success_blocks_same_snapshot_but_edit_allows_new_challenge_without_side_effects(
     app, monkeypatch
 ):
@@ -317,7 +371,13 @@ def test_success_blocks_same_snapshot_but_edit_allows_new_challenge_without_side
         assert concept.status == original_status == ConceptStatus.SHORTLISTED
         assert concept.challenge is None
         assert db.scalar(select(Experiment).where(Experiment.concept_id == concept.id)) is None
-        with pytest.raises(AIExecutionConflictError):
+        with pytest.raises(
+            AIExecutionConflictError,
+            match=(
+                "A challenge for this unchanged concept is already in progress or has already "
+                "succeeded."
+            ),
+        ):
             challenge_concept(db, settings(), concept, "challenge-duplicate")
         assert db.get(Product, run.product_id) is not None
 

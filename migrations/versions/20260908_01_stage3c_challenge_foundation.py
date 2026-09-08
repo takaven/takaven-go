@@ -16,9 +16,12 @@ _WHERE = sa.text(
 
 
 def upgrade() -> None:
-    op.add_column(
-        "ai_executions", sa.Column("input_fingerprint", sa.String(length=64), nullable=True)
-    )
+    with op.batch_alter_table("ai_executions") as batch:
+        batch.add_column(sa.Column("input_fingerprint", sa.String(length=64), nullable=True))
+        batch.create_check_constraint(
+            "ck_ai_challenge_requires_fingerprint",
+            "task_type != 'challenge_concept' OR input_fingerprint IS NOT NULL",
+        )
     op.create_index(
         "uq_ai_challenge_snapshot_active_or_succeeded",
         "ai_executions",
@@ -77,4 +80,6 @@ def downgrade() -> None:
         op.execute("DROP TRIGGER ai_challenge_executions_immutable_update")
         op.execute("DROP TRIGGER ai_challenge_executions_immutable_delete")
     op.drop_index("uq_ai_challenge_snapshot_active_or_succeeded", table_name="ai_executions")
-    op.drop_column("ai_executions", "input_fingerprint")
+    with op.batch_alter_table("ai_executions") as batch:
+        batch.drop_constraint("ck_ai_challenge_requires_fingerprint", type_="check")
+        batch.drop_column("input_fingerprint")

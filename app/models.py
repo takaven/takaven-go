@@ -327,6 +327,10 @@ class AIExecution(Base):
             "status IN ('pending', 'running', 'succeeded', 'failed')",
             name="ck_ai_execution_status",
         ),
+        CheckConstraint(
+            "task_type != 'challenge_concept' OR input_fingerprint IS NOT NULL",
+            name="ck_ai_challenge_requires_fingerprint",
+        ),
         Index("uq_ai_execution_idempotency", "idempotency_key", unique=True),
         Index("ix_ai_execution_origin", "origin_type", "origin_id"),
         Index(

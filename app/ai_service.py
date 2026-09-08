@@ -59,6 +59,7 @@ def begin_execution(
     prompt_version: str,
     schema_version: str,
     input_fingerprint: str | None = None,
+    input_snapshot: dict | None = None,
 ) -> AIExecution:
     existing = db.scalar(select(AIExecution).where(AIExecution.idempotency_key == idempotency_key))
     if existing:
@@ -76,16 +77,20 @@ def begin_execution(
         origin_id=origin_id,
         idempotency_key=idempotency_key,
         input_fingerprint=input_fingerprint,
+        input_snapshot=input_snapshot,
     )
     db.add(execution)
     try:
         db.commit()
     except IntegrityError as exc:
         db.rollback()
-        action = "challenge for this unchanged concept" if input_fingerprint else "AI action"
-        raise AIExecutionConflictError(
-            f"A {action} is already in progress or has already succeeded."
-        ) from exc
+        if task_type == AITaskType.GENERATE_COLLISIONS:
+            message = "A Generate-12 request is already in progress or has already succeeded for this run."
+        elif task_type == AITaskType.CHALLENGE_CONCEPT:
+            message = "A challenge for this unchanged concept is already in progress or has already succeeded."
+        else:
+            message = "This AI action conflicts with an existing execution."
+        raise AIExecutionConflictError(message) from exc
     return execution
 
 
@@ -96,7 +101,6 @@ def mark_running(db: Session, execution: AIExecution) -> None:
 
 def mark_failed(db: Session, execution: AIExecution, error: Exception) -> None:
     execution.status = AIExecutionStatus.FAILED
-    execution.request_id = getattr(error, "request_id", None) or execution.request_id
     execution.error_code = error.__class__.__name__
     execution.error_message = str(error)[:1000]
     execution.completed_at = datetime.now(UTC)
@@ -153,13 +157,7 @@ def frozen_generation_input(db: Session, run: CreativeRun) -> dict:
     return {
         "truth": run.truth_snapshot,
         "whitespace": run.whitespace_snapshot,
-        "signals": [
-            item.signal_snapshot
-            for item in sorted(
-                run.signals,
-                key=lambda run_signal: str(run_signal.signal_snapshot.get("id", "")),
-            )
-        ],
+        "signals": [item.signal_snapshot for item in run.signals],
         "learnings": [
             {
                 "id": item.id,
@@ -366,7 +364,13 @@ def frozen_challenge_input(db: Session, concept: Concept) -> dict:
         "concept": concept_challenge_snapshot(concept),
         "truth": run.truth_snapshot,
         "whitespace": run.whitespace_snapshot,
-        "signals": [item.signal_snapshot for item in run.signals],
+        "signals": [
+            item.signal_snapshot
+            for item in sorted(
+                run.signals,
+                key=lambda run_signal: str(run_signal.signal_snapshot.get("id", "")),
+            )
+        ],
         "learnings": [
             {
                 "id": item.id,
@@ -481,10 +485,9 @@ def challenge_concept(
         CHALLENGE_PROMPT_VERSION,
         CHALLENGE_SCHEMA_VERSION,
         input_fingerprint=fingerprint,
+        input_snapshot=payload,
     )
     try:
-        execution.input_snapshot = payload
-        db.commit()
         client = openai_client(settings)
         mark_running(db, execution)
         allowed_refs = allowed_challenge_evidence_refs(payload)
@@ -523,6 +526,7 @@ def challenge_concept(
         db.rollback()
         execution = db.get(AIExecution, execution.id)
         if execution is not None:
+            execution.request_id = getattr(exc, "request_id", None) or execution.request_id
             mark_failed(db, execution, exc)
         raise AIProviderError(
             "OpenAI could not complete this challenge. Retry when ready."
