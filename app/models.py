@@ -327,6 +327,10 @@ class AIExecution(Base):
             "status IN ('pending', 'running', 'succeeded', 'failed')",
             name="ck_ai_execution_status",
         ),
+        CheckConstraint(
+            "task_type != 'challenge_concept' OR input_fingerprint IS NOT NULL",
+            name="ck_ai_challenge_requires_fingerprint",
+        ),
         Index("uq_ai_execution_idempotency", "idempotency_key", unique=True),
         Index("ix_ai_execution_origin", "origin_type", "origin_id"),
         Index(
@@ -340,6 +344,22 @@ class AIExecution(Base):
             ),
             sqlite_where=text(
                 "task_type = 'generate_collisions' AND status IN ('pending', 'running', 'succeeded')"
+            ),
+        ),
+        Index(
+            "uq_ai_challenge_snapshot_active_or_succeeded",
+            "origin_type",
+            "origin_id",
+            "task_type",
+            "input_fingerprint",
+            unique=True,
+            postgresql_where=text(
+                "task_type = 'challenge_concept' AND "
+                "status IN ('pending', 'running', 'succeeded')"
+            ),
+            sqlite_where=text(
+                "task_type = 'challenge_concept' AND "
+                "status IN ('pending', 'running', 'succeeded')"
             ),
         ),
     )
@@ -361,6 +381,7 @@ class AIExecution(Base):
     error_message: Mapped[str | None] = mapped_column(Text)
     result: Mapped[dict | None] = mapped_column(JSON)
     input_snapshot: Mapped[dict | None] = mapped_column(JSON)
+    input_fingerprint: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -368,6 +389,20 @@ class AIExecution(Base):
 @event.listens_for(Session, "before_flush")
 def prevent_approved_truth_mutation(session: Session, *_args: object) -> None:
     for instance in session.dirty.union(session.deleted):
+        if isinstance(instance, AIExecution):
+            state = instance.__dict__.get("_sa_instance_state")
+            task_history = state.attrs.task_type.history
+            status_history = state.attrs.status.history
+            original_task = task_history.deleted[0] if task_history.deleted else instance.task_type
+            original_status = (
+                status_history.deleted[0] if status_history.deleted else instance.status
+            )
+            if original_task == AITaskType.CHALLENGE_CONCEPT and original_status in (
+                AIExecutionStatus.SUCCEEDED,
+                AIExecutionStatus.FAILED,
+            ):
+                raise ValueError("Completed AI challenge executions are immutable")
+            continue
         if not isinstance(instance, TruthVersion):
             continue
         original_status = instance.status

@@ -240,7 +240,12 @@ def test_successful_generation_blocks_a_second_batch_and_keeps_session_usable(ap
         fake = FakeClient([CollisionBatch(concepts=[collision(i) for i in range(12)])])
         monkeypatch.setattr("app.ai_service.openai_client", lambda _settings: fake)
         generate_collisions(db, settings(), run, "first-batch")
-        with pytest.raises(AIExecutionConflictError):
+        with pytest.raises(
+            AIExecutionConflictError,
+            match=(
+                "A Generate-12 request is already in progress or has already succeeded for this run."
+            ),
+        ):
             generate_collisions(db, settings(), run, "second-batch")
         assert db.get(Product, product.id) is not None
         assert len(list(db.scalars(select(Concept).where(Concept.creative_run_id == run.id)))) == 12

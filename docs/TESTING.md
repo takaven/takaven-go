@@ -49,3 +49,15 @@ REAL API: PASS — Run 1, gpt-5.6-sol / 3b-v1, executed successfully with struct
 REGRESSION: Stage 1–2 PASS before current groundwork
 FINAL VERDICT: PASS / ACCEPTED
 KNOWN TEST GAPS: Production deployment behavior.
+
+## Stage 3C Slice 1
+
+CHECKPOINT: Stage 3C Slice 1 challenge foundation
+DATE: 2026-09-08
+AUTOMATED: PASS — deterministic concept fingerprint, blind atomically persisted frozen input, deterministic Signal ordering, same-product Learning scope/order, fixed five-gate schema, evidence-reference validation, one bounded repair, provider/configuration failures, duplicate/retry/edit eligibility, task-specific conflict messages, required challenge fingerprints, and zero domain transitions.
+POSTGRESQL: PASS — actual challenge service persistence, deterministic multi-Signal snapshot provenance, non-null challenge fingerprint constraint, partial unique challenge slot, failed retry, changed-fingerprint eligibility, terminal provenance immutability, state preservation, and migration downgrade/re-upgrade through the current head.
+UI: NOT STARTED — intentionally excluded from Slice 1.
+REAL API: NOT RUN — intentionally excluded from Slice 1.
+REGRESSION: Stage 1–3B PASS.
+FINAL VERDICT: IMPLEMENTED / UNDER REVIEW; Stage 3C is not PASS.
+KNOWN TEST GAPS: rendered AI challenge, revision/rechallenge, real-provider initial/rechallenge quality, production cost/latency and deployment behavior.
