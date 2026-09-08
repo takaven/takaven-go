@@ -8,7 +8,7 @@ The current operating path is Product Truth → Signals → Creative Run → Gen
 
 ## V1 scope
 
-Product Truth, Attention Radar, Creative Engine, and Experiment & Learning. Stages 1, 2, 3A and 3B are complete. Stage 3C design is frozen and Slice 1 challenge-foundation implementation is under review; Stage 3C overall is not accepted or PASS.
+Product Truth, Attention Radar, Creative Engine, and Experiment & Learning. Stages 1, 2, 3A and 3B are complete. Stage 3C design is frozen, Slice 1 is accepted, and Slice 2's rendered initial challenge is implemented under review; Stage 3C overall is not accepted or PASS.
 
 ## Exclusions
 
@@ -20,4 +20,4 @@ Evidence precedes conclusion; operators own consequential decisions; frozen evid
 
 ## Not built
 
-The Stage 3C AI-challenge service/database foundation is implemented under review. Its rendered operator workflow and revision/rechallenge are **NOT BUILT**. AI experiment drafting, AI learning drafting, live signal ingestion, and later V1 stages are also **NOT BUILT**. AI collision generation is implemented and accepted in Stage 3B.
+The accepted Stage 3C AI-challenge service/database foundation and the under-review rendered initial challenge workflow are implemented. Operator revision/rechallenge is **NOT BUILT**. AI experiment drafting, AI learning drafting, live signal ingestion, and later V1 stages are also **NOT BUILT**. AI collision generation is implemented and accepted in Stage 3B.

@@ -1,1 +1,222 @@
-{% extends "base.html" %}{% block content %}<section class="mx-auto max-w-3xl"><a class="text-sm font-semibold text-moss" href="/creative/runs/{{ concept.creative_run_id }}">← Run</a><form class="command-card mt-5" method="post" action="/creative/concepts/{{ concept.id }}/challenge"><input type="hidden" name="csrf" value="{{ csrf_token }}"><p class="eyebrow">Manual challenge</p><h1 class="mt-2 font-display text-3xl">Find the reason to kill it.</h1><p class="mt-2 text-ink/60">{{ concept.tension }}</p>{% for gate in gate_names %}{% set existing = concept.challenge.gates.get(gate, {}) if concept.challenge else {} %}<div class="mt-5 rounded-xl border border-ink/10 p-4"><label class="field-label">{{ gate }}<select class="field-input mt-2" name="gate_{{ loop.index0 }}" required><option value="">Choose verdict</option>{% for verdict in ['pass','weak','fail'] %}<option value="{{ verdict }}" {{ 'selected' if existing.get('verdict') == verdict }}>{{ verdict|upper }}</option>{% endfor %}</select></label><label class="field-label mt-3">Reasoning<textarea class="field-input mt-2" name="reason_{{ loop.index0 }}" required>{{ existing.get('reasoning','') }}</textarea></label></div>{% endfor %}{% set c = concept.challenge %}{% for name,label in [('strongest_reason','Strongest reason it might work'),('strongest_objection','Strongest objection'),('unsupported_claims','Unsupported-claim check'),('smallest_repair','Smallest viable repair')] %}<label class="field-label mt-5">{{ label }}<textarea class="field-input mt-2" name="{{ name }}" required>{{ c|attr(name) if c else '' }}</textarea></label>{% endfor %}<label class="mt-5 flex gap-2 text-sm"><input type="checkbox" name="unsupported_resolved" {{ 'checked' if c and c.unsupported_resolved }}> Unsupported claims are resolved (or none identified).</label><label class="field-label mt-5">Recommendation<select class="field-input mt-2" name="recommendation" required><option value="">Choose recommendation</option>{% for item in ['go','revise','kill'] %}<option value="{{ item }}" {{ 'selected' if c and c.recommendation == item }}>{{ item|upper }}</option>{% endfor %}</select></label><button class="btn-primary mt-6">Save challenge</button></form></section>{% endblock %}
+{% extends "base.html" %}
+
+{% macro evidence_refs(refs) -%}
+  <div class="mt-3 flex flex-wrap gap-2" aria-label="Evidence supplied to the AI challenge">
+    {% for ref in refs %}
+      <span class="rounded-full border border-ink/10 bg-paper px-2.5 py-1 font-mono text-[0.68rem] text-ink/60">{{ ref }}</span>
+    {% endfor %}
+  </div>
+{%- endmacro %}
+
+{% macro assessment(execution, title, historical=false) -%}
+  {% set result = execution.result or {} %}
+  {% set item = result.get('assessment', {}) %}
+  <section class="command-card {{ 'border-amber-500/40 bg-amber-50/50' if historical else 'border-moss/25' }}">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p class="eyebrow">{{ 'Historical context' if historical else 'Independent second opinion' }}</p>
+        <h2 class="mt-2 font-display text-2xl">{{ title }}</h2>
+      </div>
+      <span class="status-chip border-moss/30 bg-moss/5 text-moss">Succeeded</span>
+    </div>
+
+    {% if historical %}
+      <div class="mt-5 border-l-2 border-amber-500 bg-white/70 p-4 text-sm text-ink/70">
+        <strong class="text-ink">Concept changed since this AI assessment.</strong>
+        <p class="mt-1">This read-only assessment applies to the earlier concept snapshot, not the current edited concept. A new AI assessment is not enabled in this checkpoint.</p>
+      </div>
+    {% endif %}
+
+    <div class="mt-6 grid gap-3 lg:grid-cols-2">
+      {% for key, label in [
+        ('remarkable', 'Remarkable'),
+        ('logo_off', 'Logo-Off'),
+        ('product_owned', 'Product-Owned'),
+        ('commercially_convertible', 'Commercially Convertible'),
+        ('buyable_internally_defensible', 'Buyable / Internally Defensible')
+      ] %}
+        {% set gate = item.get(key, {}) %}
+        {% set verdict = gate.get('verdict', '') %}
+        <article class="rounded-xl border border-ink/10 bg-white p-4 {{ 'lg:col-span-2' if loop.last }}">
+          <div class="flex items-center justify-between gap-3">
+            <h3 class="font-display text-lg">{{ label }}</h3>
+            <span class="status-chip {{ 'border-moss/30 bg-moss/5 text-moss' if verdict == 'PASS' else 'border-amber-500/40 bg-amber-50 text-amber-800' if verdict == 'WEAK' else 'border-red-600/30 bg-red-50 text-red-700' }}">{{ verdict }}</span>
+          </div>
+          <p class="mt-3 text-sm leading-6 text-ink/70">{{ gate.get('reasoning', '') }}</p>
+          {{ evidence_refs(gate.get('evidence_refs', [])) }}
+        </article>
+      {% endfor %}
+    </div>
+
+    <div class="mt-6 grid gap-4 md:grid-cols-2">
+      <div class="rounded-xl bg-paper p-4">
+        <p class="field-label">Strongest reason it might work</p>
+        <p class="text-sm leading-6">{{ item.get('strongest_reason', '') }}</p>
+      </div>
+      <div class="rounded-xl bg-paper p-4">
+        <p class="field-label">Strongest objection</p>
+        <p class="text-sm leading-6">{{ item.get('strongest_objection', '') }}</p>
+      </div>
+    </div>
+
+    <div class="mt-4 rounded-xl border border-ink/10 p-4">
+      <p class="field-label">Unsupported-claim concerns</p>
+      {% if item.get('unsupported_claims', []) %}
+        <div class="space-y-4">
+          {% for concern in item.get('unsupported_claims', []) %}
+            <div>
+              <p class="text-sm leading-6">{{ concern.get('concern', '') }}</p>
+              {{ evidence_refs(concern.get('evidence_refs', [])) }}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-sm leading-6 text-ink/65">No unsupported-claim concerns were returned by this AI assessment. This is not proof that every claim is safe or supported.</p>
+      {% endif %}
+    </div>
+
+    <div class="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
+      <div class="rounded-xl bg-paper p-4">
+        <p class="field-label">Smallest viable repair</p>
+        <p class="text-sm leading-6">{{ item.get('smallest_repair', '') }}</p>
+      </div>
+      <div class="rounded-xl border border-ink/15 bg-ink p-4 text-white md:min-w-48">
+        <p class="text-[0.68rem] font-bold uppercase tracking-[0.16em] text-white/55">AI recommendation — advisory only</p>
+        <p class="mt-2 font-display text-2xl text-acid">{{ item.get('recommendation', '') }}</p>
+      </div>
+    </div>
+
+    <details class="mt-5 border-t border-ink/10 pt-4 text-sm text-ink/65">
+      <summary class="cursor-pointer font-semibold text-ink">Assessment trace</summary>
+      <dl class="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        <div><dt class="field-label">Model</dt><dd>{{ execution.model }}</dd></div>
+        <div><dt class="field-label">Executed</dt><dd>{{ execution.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</dd></div>
+        <div><dt class="field-label">Prompt version</dt><dd>{{ execution.prompt_version }}</dd></div>
+        <div><dt class="field-label">Schema version</dt><dd>{{ execution.schema_version }}</dd></div>
+        <div><dt class="field-label">Attempt count</dt><dd>{{ result.get('attempt_count', 1) }}</dd></div>
+        <div><dt class="field-label">Structural repair</dt><dd>{{ 'Used' if result.get('repair_used') else 'Not used' }}</dd></div>
+        <div class="sm:col-span-2"><dt class="field-label">Input fingerprint</dt><dd class="break-all font-mono text-xs">{{ execution.input_fingerprint }}</dd></div>
+        {% if execution.request_id %}<div class="sm:col-span-2"><dt class="field-label">Request ID</dt><dd class="break-all font-mono text-xs">{{ execution.request_id }}</dd></div>{% endif %}
+      </dl>
+    </details>
+  </section>
+{%- endmacro %}
+
+{% block content %}
+<section class="mx-auto max-w-5xl">
+  <a class="text-sm font-semibold text-moss" href="/creative/runs/{{ concept.creative_run_id }}">← Run</a>
+
+  <header class="mt-5 border-b border-ink/10 pb-7">
+    <div class="flex flex-wrap items-center gap-3">
+      <p class="eyebrow">Challenge workspace</p>
+      <span class="status-chip border-ink/15 text-ink/60">{{ concept.status }}</span>
+    </div>
+    <h1 class="mt-3 max-w-4xl font-display text-3xl leading-tight sm:text-4xl">{{ concept.tension }}</h1>
+    <p class="mt-3 max-w-3xl text-base leading-7 text-ink/65">{{ concept.creative_mechanic }}</p>
+  </header>
+
+  <div class="mt-7 space-y-5">
+    {% if ai_error %}
+      <div class="rounded-xl border border-red-600/25 bg-red-50 p-4 text-sm text-red-800" role="alert">{{ ai_error }}</div>
+    {% endif %}
+
+    {% if current_ai_execution and current_ai_execution.status == 'succeeded' %}
+      {{ assessment(current_ai_execution, 'Independent AI challenge') }}
+    {% elif current_ai_execution and current_ai_execution.status in ['pending', 'running'] %}
+      <section class="command-card border-moss/25">
+        <p class="eyebrow">Independent second opinion</p>
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 class="font-display text-2xl">AI challenge {{ current_ai_execution.status }}</h2>
+            <p class="mt-2 text-sm text-ink/65">The current concept snapshot is being assessed. Duplicate requests are disabled.</p>
+          </div>
+          <span class="status-chip border-moss/30 bg-moss/5 text-moss">{{ current_ai_execution.status }}</span>
+        </div>
+      </section>
+    {% elif current_ai_execution and current_ai_execution.status == 'failed' %}
+      <section class="command-card border-red-600/25 bg-red-50/40">
+        <p class="eyebrow">Independent second opinion</p>
+        <div class="mt-3 flex flex-wrap items-start justify-between gap-4">
+          <div class="max-w-2xl">
+            <h2 class="font-display text-2xl">AI challenge failed</h2>
+            <p class="mt-2 text-sm leading-6 text-ink/65">The provider did not complete this assessment. Your concept and manual challenge work are safe.</p>
+            {% if current_ai_execution.error_code %}<p class="mt-2 text-xs text-ink/50">Error code: {{ current_ai_execution.error_code }}</p>{% endif %}
+          </div>
+          {% if ai_action == 'retry' %}
+            <form method="post" action="/creative/concepts/{{ concept.id }}/ai-challenge">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}">
+              <button class="btn-primary">Retry AI challenge</button>
+            </form>
+          {% endif %}
+        </div>
+        <details class="mt-5 border-t border-red-600/15 pt-4 text-sm text-ink/65">
+          <summary class="cursor-pointer font-semibold text-ink">Assessment trace</summary>
+          <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+            <div><dt class="field-label">Model</dt><dd>{{ current_ai_execution.model }}</dd></div>
+            <div><dt class="field-label">Prompt version</dt><dd>{{ current_ai_execution.prompt_version }}</dd></div>
+            <div><dt class="field-label">Schema version</dt><dd>{{ current_ai_execution.schema_version }}</dd></div>
+            <div class="sm:col-span-2"><dt class="field-label">Input fingerprint</dt><dd class="break-all font-mono text-xs">{{ current_ai_execution.input_fingerprint }}</dd></div>
+            {% if current_ai_execution.request_id %}<div class="sm:col-span-2"><dt class="field-label">Request ID</dt><dd class="break-all font-mono text-xs">{{ current_ai_execution.request_id }}</dd></div>{% endif %}
+          </dl>
+        </details>
+      </section>
+    {% elif ai_action == 'challenge' %}
+      <section class="command-card border-moss/25">
+        <div class="flex flex-wrap items-center justify-between gap-5">
+          <div class="max-w-2xl">
+            <p class="eyebrow">Independent second opinion</p>
+            <h2 class="mt-2 font-display text-2xl">Challenge the current concept</h2>
+            <p class="mt-2 text-sm leading-6 text-ink/65">Independent advisory review against the frozen Product Truth and evidence. It does not decide whether to retain, revise or kill the concept.</p>
+          </div>
+          <form method="post" action="/creative/concepts/{{ concept.id }}/ai-challenge">
+            <input type="hidden" name="csrf" value="{{ csrf_token }}">
+            <button class="btn-primary">Challenge with AI</button>
+          </form>
+        </div>
+      </section>
+    {% elif not historical_ai_execution %}
+      <section class="rounded-xl border border-ink/10 bg-white/50 p-4 text-sm text-ink/60">
+        AI challenge is available only for a shortlisted concept that has not previously received a successful AI assessment.
+      </section>
+    {% endif %}
+
+    {% if historical_ai_execution %}
+      {{ assessment(historical_ai_execution, 'Previous AI assessment', historical=true) }}
+    {% endif %}
+  </div>
+
+  <section class="mt-10 border-t-2 border-ink pt-8">
+    <p class="eyebrow">Your challenge</p>
+    <h2 class="mt-2 font-display text-3xl">Make the consequential judgment.</h2>
+    <p class="mt-3 max-w-3xl text-sm leading-6 text-ink/65">The AI assessment above is a second opinion. Complete your own five-gate challenge below. Only your saved manual challenge governs RETAIN / REVISE / KILL.</p>
+
+    <form class="command-card mt-5" method="post" action="/creative/concepts/{{ concept.id }}/challenge">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      {% for gate in gate_names %}
+        {% set existing = concept.challenge.gates.get(gate, {}) if concept.challenge else {} %}
+        <div class="mt-5 rounded-xl border border-ink/10 p-4 first:mt-0">
+          <label class="field-label">{{ gate }}
+            <select class="field-input mt-2" name="gate_{{ loop.index0 }}" required>
+              <option value="">Choose verdict</option>
+              {% for verdict in ['pass','weak','fail'] %}<option value="{{ verdict }}" {{ 'selected' if existing.get('verdict') == verdict }}>{{ verdict|upper }}</option>{% endfor %}
+            </select>
+          </label>
+          <label class="field-label mt-3">Reasoning<textarea class="field-input mt-2" name="reason_{{ loop.index0 }}" required>{{ existing.get('reasoning','') }}</textarea></label>
+        </div>
+      {% endfor %}
+      {% set c = concept.challenge %}
+      {% for name,label in [('strongest_reason','Strongest reason it might work'),('strongest_objection','Strongest objection'),('unsupported_claims','Unsupported-claim check'),('smallest_repair','Smallest viable repair')] %}
+        <label class="field-label mt-5">{{ label }}<textarea class="field-input mt-2" name="{{ name }}" required>{{ c|attr(name) if c else '' }}</textarea></label>
+      {% endfor %}
+      <label class="mt-5 flex gap-2 text-sm"><input type="checkbox" name="unsupported_resolved" {{ 'checked' if c and c.unsupported_resolved }}> Unsupported claims are resolved (or none identified).</label>
+      <label class="field-label mt-5">Recommendation
+        <select class="field-input mt-2" name="recommendation" required>
+          <option value="">Choose recommendation</option>
+          {% for item in ['go','revise','kill'] %}<option value="{{ item }}" {{ 'selected' if c and c.recommendation == item }}>{{ item|upper }}</option>{% endfor %}
+        </select>
+      </label>
+      <button class="btn-primary mt-6">Save challenge</button>
+    </form>
+  </section>
+</section>
+{% endblock %}

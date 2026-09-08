@@ -59,5 +59,17 @@ POSTGRESQL: PASS — actual challenge service persistence, deterministic multi-S
 UI: NOT STARTED — intentionally excluded from Slice 1.
 REAL API: NOT RUN — intentionally excluded from Slice 1.
 REGRESSION: Stage 1–3B PASS.
-FINAL VERDICT: IMPLEMENTED / UNDER REVIEW; Stage 3C is not PASS.
-KNOWN TEST GAPS: rendered AI challenge, revision/rechallenge, real-provider initial/rechallenge quality, production cost/latency and deployment behavior.
+FINAL VERDICT: PASS / ACCEPTED; Stage 3C overall is not PASS.
+KNOWN TEST GAPS: revision/rechallenge, real-provider initial/rechallenge quality, production cost/latency and deployment behavior.
+
+## Stage 3C Slice 2
+
+CHECKPOINT: Stage 3C Slice 2 rendered initial challenge
+DATE: 2026-09-08
+AUTOMATED: PASS — authenticated/CSRF route controls, current-fingerprint execution selection, eligibility states, safe failure/retry, successful five-gate rendering, evidence references, summary judgment, provenance trace, stale historical assessment and direct-POST rechallenge blocking.
+POSTGRESQL: PASS — existing Slice 1 challenge invariants and Stage 3B service persistence remain covered; Slice 2 adds no schema.
+UI: PASS — deterministic rendered HTTP workflow proves AI challenge, manual form separation, no AI domain transition, manual challenge save and operator decision availability.
+REAL API: NOT RUN — intentionally excluded from Slice 2.
+REGRESSION: Stage 1–3C Slice 1 PASS.
+FINAL VERDICT: IMPLEMENTED / UNDER REVIEW; Stage 3C is not PASS / accepted.
+KNOWN TEST GAPS: Slice 3 revision/rechallenge, real-provider initial/rechallenge quality, production cost/latency and deployment behavior.

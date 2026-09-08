@@ -2,9 +2,9 @@
 
 Takaven Go is TAKAVEN's internal evidence-led growth engine for the LeaseDesk pilot.
 
-Current project truth: **Stage 1 PASS · Stage 2 PASS · Stage 3A PASS · Stage 3B PASS / ACCEPTED · Stage 3C design FROZEN · Stage 3C Slice 1 UNDER REVIEW.**
+Current project truth: **Stage 1 PASS · Stage 2 PASS · Stage 3A PASS · Stage 3B PASS / ACCEPTED · Stage 3C design FROZEN · Slice 1 PASS / ACCEPTED · Slice 2 IMPLEMENTED / UNDER REVIEW.**
 
-Stage 1 provides Product Truth, authentication, versioning and audit controls. Stage 2 provides the full manual growth loop. Stage 3A adds the OpenAI execution boundary and trace record. Stage 3B's Generate-12 path passed deterministic verification and two independently reviewed real-OpenAI quality runs. Stage 3C Slice 1 implements the service/database foundation for an initial blind challenge of one shortlisted concept; no rendered AI-challenge or rechallenge workflow exists yet.
+Stage 1 provides Product Truth, authentication, versioning and audit controls. Stage 2 provides the full manual growth loop. Stage 3A adds the OpenAI execution boundary and trace record. Stage 3B's Generate-12 path passed deterministic verification and two independently reviewed real-OpenAI quality runs. Stage 3C Slice 1 is accepted; Slice 2 adds the operator-facing initial AI challenge beside the authoritative manual challenge and is under review. Slice 3 revision/rechallenge has not started, Stage 3C overall is not accepted, and its real-provider quality gate has not run.
 
 Repository truth: [Product](docs/PRODUCT.md), [Architecture](docs/ARCHITECTURE.md), [Build Status](docs/BUILD_STATUS.md), [Decisions](docs/DECISIONS.md), [Benchmarks](docs/BENCHMARKS.md), [Testing](docs/TESTING.md), [Security](docs/SECURITY.md), [Limitations](docs/LIMITATIONS.md), and [Changelog](docs/CHANGELOG.md).
 

@@ -15,6 +15,8 @@ from app.ai_service import (
     AIConfigurationError,
     AIExecutionConflictError,
     AIProviderError,
+    challenge_concept,
+    concept_input_fingerprint,
     generate_collisions,
 )
 from app.auth import (
@@ -53,6 +55,8 @@ from app.manual_loop import (
 )
 from app.models import (
     AIExecution,
+    AIExecutionStatus,
+    AITaskType,
     ChallengeRecommendation,
     Concept,
     ConceptStatus,
@@ -133,6 +137,60 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         context = base_context(request, db, area)
         context.update({"error": message, "back": location})
         return templates.TemplateResponse(request, "loop_error.html", context, status_code=422)
+
+    def challenge_workspace_context(
+        request: Request,
+        db: Session,
+        concept: Concept,
+        ai_error: str | None = None,
+    ) -> dict:
+        """Build the rendered state for the concept's current immutable snapshot."""
+        fingerprint = concept_input_fingerprint(concept)
+        executions = list(
+            db.scalars(
+                select(AIExecution)
+                .where(
+                    AIExecution.task_type == AITaskType.CHALLENGE_CONCEPT,
+                    AIExecution.origin_type == "concept",
+                    AIExecution.origin_id == concept.id,
+                )
+                .order_by(AIExecution.created_at.desc(), AIExecution.id.desc())
+            )
+        )
+        current_execution = next(
+            (item for item in executions if item.input_fingerprint == fingerprint), None
+        )
+        historical_success = next(
+            (
+                item
+                for item in executions
+                if item.status == AIExecutionStatus.SUCCEEDED
+                and item.input_fingerprint != fingerprint
+            ),
+            None,
+        )
+        any_success = any(item.status == AIExecutionStatus.SUCCEEDED for item in executions)
+        ai_action = None
+        if concept.status == ConceptStatus.SHORTLISTED and not any_success:
+            if current_execution is None:
+                ai_action = "challenge"
+            elif current_execution.status == AIExecutionStatus.FAILED:
+                ai_action = "retry"
+
+        context = base_context(request, db, "creative")
+        context.update(
+            {
+                "concept": concept,
+                "gate_names": GATE_NAMES,
+                "recommendations": ChallengeRecommendation,
+                "current_fingerprint": fingerprint,
+                "current_ai_execution": current_execution,
+                "historical_ai_execution": historical_success,
+                "ai_action": ai_action,
+                "ai_error": ai_error,
+            }
+        )
+        return context
 
     def form_values(form, fields: tuple[str, ...]) -> dict[str, str]:
         return {field: str(form.get(field, "")) for field in fields}
@@ -575,15 +633,64 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         concept = db.get(Concept, concept_id)
         if concept is None or concept.creative_run.product_id != leasedesk(db).id:
             raise HTTPException(status_code=404, detail="Concept not found")
-        context = base_context(request, db, "creative")
-        context.update(
-            {
-                "concept": concept,
-                "gate_names": GATE_NAMES,
-                "recommendations": ChallengeRecommendation,
-            }
-        )
+        context = challenge_workspace_context(request, db, concept)
         return templates.TemplateResponse(request, "creative/challenge.html", context)
+
+    @application.post("/creative/concepts/{concept_id}/ai-challenge")
+    async def ai_challenge_route(concept_id: str, request: Request, db: Session = Depends(get_db)):
+        require_session(request, db)
+        form = await request.form()
+        validate_csrf(request, str(form.get("csrf", "")), settings)
+        concept = db.get(Concept, concept_id)
+        if concept is None or concept.creative_run.product_id != leasedesk(db).id:
+            raise HTTPException(status_code=404, detail="Concept not found")
+
+        prior_success = db.scalar(
+            select(AIExecution.id).where(
+                AIExecution.task_type == AITaskType.CHALLENGE_CONCEPT,
+                AIExecution.origin_type == "concept",
+                AIExecution.origin_id == concept.id,
+                AIExecution.status == AIExecutionStatus.SUCCEEDED,
+            )
+        )
+        try:
+            if prior_success is not None:
+                raise AIExecutionConflictError(
+                    "This concept already has an AI assessment. A new assessment after editing "
+                    "belongs to the revision and rechallenge checkpoint."
+                )
+            challenge_concept(
+                db,
+                settings,
+                concept,
+                f"{concept.id}:challenge:{uuid4()}",
+            )
+        except (
+            AIConfigurationError,
+            AIExecutionConflictError,
+            AIProviderError,
+            ValidationError,
+            ValueError,
+            TypeError,
+        ) as exc:
+            db.rollback()
+            db.expire_all()
+            concept = db.get(Concept, concept_id)
+            if isinstance(exc, (AIConfigurationError, AIExecutionConflictError, AIProviderError)):
+                detail = str(exc)
+            else:
+                detail = "The structured assessment was invalid after its bounded repair attempt."
+            context = challenge_workspace_context(
+                request,
+                db,
+                concept,
+                "AI challenge could not be completed. Your concept and manual work are unchanged. "
+                f"{detail}",
+            )
+            return templates.TemplateResponse(
+                request, "creative/challenge.html", context, status_code=422
+            )
+        return RedirectResponse(f"/creative/concepts/{concept_id}/challenge", status_code=303)
 
     @application.post("/creative/concepts/{concept_id}/challenge")
     async def save_challenge_route(
